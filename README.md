@@ -27,12 +27,6 @@ swift build -c release
 
 The executable will be available at `.build/release/swift-dependency-audit`.
 
-### Homebrew (Coming Soon)
-
-```bash
-brew install dependentimportscanner
-```
-
 ## Usage
 
 ### Basic Usage
@@ -45,13 +39,13 @@ swift run swift-dependency-audit
 swift run swift-dependency-audit /path/to/package
 
 # Use built executable
-.build/release/DependentImportScanner /path/to/package
+.build/release/swift-dependency-audit /path/to/package
 ```
 
 ### Command Line Options
 
 ```
-USAGE: DependentImportScanner [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--json] [--whitelist <whitelist>]
+USAGE: swift-dependency-audit [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--json] [--whitelist <whitelist>]
 
 ARGUMENTS:
   <path>                  Path to Package.swift or package directory (default: current directory)
@@ -149,8 +143,8 @@ swift run swift-dependency-audit --exclude-tests
 ## Requirements
 
 - Swift 6.1+
-- macOS 14.0+ / Linux (Swift on Linux)
-- Xcode 16.0+ (for development)
+- macOS 15+
+- Xcode 16.4+ (for development)
 
 ## Development
 
@@ -164,24 +158,6 @@ swift build
 
 ```bash
 swift test
-```
-
-### Project Structure
-
-```
-DependentImportScanner/
-├── Package.swift                    # Package definition
-├── Sources/
-│   ├── DependentImportScannerLib/   # Core library
-│   │   ├── DependentImportScanner.swift    # CLI interface
-│   │   ├── PackageParser.swift             # Package.swift parsing
-│   │   ├── ImportScanner.swift             # Import scanning
-│   │   ├── DependencyAnalyzer.swift        # Analysis logic
-│   │   ├── ParallelProcessor.swift         # Parallel processing
-│   │   ├── ColorOutput.swift               # Terminal colors
-│   │   └── Models.swift                    # Data structures
-│   └── DependentImportScanner/      # Executable entry point
-└── Tests/                           # Comprehensive test suite
 ```
 
 ## Contributing
