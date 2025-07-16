@@ -72,7 +72,7 @@ jobs:
       - name: Test CLI functionality
         run: |
           swift run swift-dependency-audit --help
-          swift run swift-dependency-audit . --verbose
+          swift run swift-dependency-audit . --verbose --exclude-tests
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
