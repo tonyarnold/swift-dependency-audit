@@ -6,8 +6,21 @@ public actor ImportScanner {
     private let importRegex = Regex {
         Anchor.startOfLine
         ZeroOrMore(.whitespace)
+        // Handle optional attributes like @testable, @preconcurrency, @_exported, etc.
+        ZeroOrMore {
+            "@"
+            OneOrMore(.word)
+            OneOrMore(.whitespace)
+        }
+        // Handle optional access level modifiers like private, internal, public, etc.
         Optionally {
-            "@testable"
+            ChoiceOf {
+                "private"
+                "internal"
+                "public"
+                "open"
+                "fileprivate"
+            }
             OneOrMore(.whitespace)
         }
         "import"

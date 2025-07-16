@@ -124,4 +124,72 @@ struct ImportScannerTests {
         #expect(imports.count == 1)
         #expect(imports.first?.moduleName == "MyCustomModule")
     }
+    
+    @Test("Scan private import statements")
+    func testPrivateImports() async throws {
+        let scanner = ImportScanner()
+        let content = """
+        private import FrameworkOne
+        private import FrameworkTwo
+        import RegularModule
+        """
+        
+        let imports = await scanner.scanContent(content)
+        
+        #expect(imports.count == 3)
+        let moduleNames = Set(imports.map { $0.moduleName })
+        #expect(moduleNames.contains("FrameworkOne"))
+        #expect(moduleNames.contains("FrameworkTwo"))
+        #expect(moduleNames.contains("RegularModule"))
+    }
+    
+    @Test("Scan @preconcurrency import statements")
+    func testPreconcurrencyImports() async throws {
+        let scanner = ImportScanner()
+        let content = """
+        @preconcurrency import AmplitudeSwift
+        @preconcurrency private import SomeFramework
+        @testable import TestModule
+        """
+        
+        let imports = await scanner.scanContent(content)
+        
+        #expect(imports.count == 3)
+        let moduleNames = Set(imports.map { $0.moduleName })
+        #expect(moduleNames.contains("AmplitudeSwift"))
+        #expect(moduleNames.contains("SomeFramework"))
+        #expect(moduleNames.contains("TestModule"))
+        
+        let testableImport = imports.first { $0.moduleName == "TestModule" }
+        #expect(testableImport?.isTestable == true)
+    }
+    
+    @Test("Scan mixed import modifiers")
+    func testMixedImportModifiers() async throws {
+        let scanner = ImportScanner()
+        let content = """
+        import Foundation
+        private import PrivateModule
+        @preconcurrency import ConcurrencyModule
+        @testable import TestableModule
+        @preconcurrency private import ComplexModule
+        public import PublicModule
+        @_exported import ExportedModule
+        """
+        
+        let imports = await scanner.scanContent(content)
+        
+        // Foundation should be filtered out, leaving 6 custom modules
+        #expect(imports.count == 6)
+        let moduleNames = Set(imports.map { $0.moduleName })
+        #expect(moduleNames.contains("PrivateModule"))
+        #expect(moduleNames.contains("ConcurrencyModule"))
+        #expect(moduleNames.contains("TestableModule"))
+        #expect(moduleNames.contains("ComplexModule"))
+        #expect(moduleNames.contains("PublicModule"))
+        #expect(moduleNames.contains("ExportedModule"))
+        
+        let testableImport = imports.first { $0.moduleName == "TestableModule" }
+        #expect(testableImport?.isTestable == true)
+    }
 }
