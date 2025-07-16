@@ -34,6 +34,9 @@ public struct DependentImportScanner: AsyncParsableCommand {
     @Flag(name: .long, help: "Output results in JSON format")
     public var json = false
 
+    @Flag(name: [.short, .long], help: "Only show problems, suppress success messages")
+    public var quiet = false
+
     @Option(
         name: .long,
         help: "Comma-separated list of system imports to ignore (e.g., Foundation,SwiftUI,AppKit)")
@@ -97,11 +100,11 @@ public struct DependentImportScanner: AsyncParsableCommand {
             // Generate and output report
             if json {
                 let jsonReport = try await analyzer.generateJSONReport(
-                    for: results, packageName: packageInfo.name)
+                    for: results, packageName: packageInfo.name, quiet: quiet)
                 print(jsonReport)
             } else {
                 let report = await analyzer.generateReport(
-                    for: results, packageName: packageInfo.name, verbose: verbose)
+                    for: results, packageName: packageInfo.name, verbose: verbose, quiet: quiet)
                 print(report)
 
                 // Exit with error code if issues found

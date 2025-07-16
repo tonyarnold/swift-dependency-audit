@@ -71,7 +71,7 @@ public actor DependencyAnalyzer {
             .map { $0.name })
     }
     
-    public func generateReport(for results: [AnalysisResult], packageName: String, verbose: Bool = false) async -> String {
+    public func generateReport(for results: [AnalysisResult], packageName: String, verbose: Bool = false, quiet: Bool = false) async -> String {
         var output: [String] = []
         
         output.append(ColorOutput.bold("📦 Package: \(packageName)"))
@@ -82,28 +82,41 @@ public actor DependencyAnalyzer {
         let totalUnused = results.reduce(0) { $0 + $1.unusedDependencies.count }
         
         if totalIssues == 0 {
-            output.append(ColorOutput.success("All dependencies are correctly declared! ✨"))
+            if !quiet {
+                output.append(ColorOutput.success("All dependencies are correctly declared! ✨"))
+            }
         } else {
             output.append(ColorOutput.info("Found \(totalIssues) target(s) with dependency issues"))
             output.append(ColorOutput.info("Total missing: \(totalMissing), unused: \(totalUnused)"))
         }
-        output.append("")
+        
+        if !quiet || totalIssues > 0 {
+            output.append("")
+        }
         
         for result in results {
-            output.append(await generateTargetReport(result, verbose: verbose))
-            output.append("")
+            let targetReport = await generateTargetReport(result, verbose: verbose, quiet: quiet)
+            if !targetReport.isEmpty {
+                output.append(targetReport)
+                output.append("")
+            }
         }
         
         return output.joined(separator: "\n")
     }
     
-    private func generateTargetReport(_ result: AnalysisResult, verbose: Bool) async -> String {
+    private func generateTargetReport(_ result: AnalysisResult, verbose: Bool, quiet: Bool = false) async -> String {
         var output: [String] = []
         
         let targetTypeIcon = switch result.target.type {
         case .executable: "🔧"
         case .library: "📚"
         case .test: "🧪"
+        }
+        
+        if !result.hasIssues && quiet {
+            // In quiet mode, don't show targets with no issues
+            return ""
         }
         
         output.append("\(targetTypeIcon) Target: \(ColorOutput.targetName(result.target.name))")
@@ -143,8 +156,8 @@ public actor DependencyAnalyzer {
             }
         }
         
-        // Correct dependencies (only in verbose mode)
-        if verbose && !result.correctDependencies.isEmpty {
+        // Correct dependencies (only in verbose mode and not in quiet mode)
+        if verbose && !quiet && !result.correctDependencies.isEmpty {
             let successMessage = ColorOutput.success("Correct dependencies (\(result.correctDependencies.count)):")
             output.append("  " + successMessage)
             for dep in result.correctDependencies.sorted() {
@@ -153,7 +166,7 @@ public actor DependencyAnalyzer {
             }
         }
         
-        if verbose {
+        if verbose && !quiet {
             let dimMessage = ColorOutput.dim("Source files: \(result.sourceFiles.count)")
             output.append("  " + dimMessage)
         }
@@ -161,10 +174,11 @@ public actor DependencyAnalyzer {
         return output.joined(separator: "\n")
     }
     
-    public func generateJSONReport(for results: [AnalysisResult], packageName: String) async throws -> String {
+    public func generateJSONReport(for results: [AnalysisResult], packageName: String, quiet: Bool = false) async throws -> String {
+        let filteredResults = quiet ? results.filter { $0.hasIssues } : results
         let analysis = PackageAnalysis(
             packageName: packageName,
-            targets: results.map { PackageAnalysis.TargetAnalysis(from: $0) }
+            targets: filteredResults.map { PackageAnalysis.TargetAnalysis(from: $0) }
         )
         
         let encoder = JSONEncoder()

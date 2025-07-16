@@ -186,6 +186,164 @@ struct DependencyAnalyzerTests {
         #expect(target2Result?.hasIssues == true)
     }
     
+    @Test("Quiet mode suppresses success messages")
+    func testQuietModeWithNoIssues() async throws {
+        let tempDir = try createTestPackage(
+            packageName: "TestPackage",
+            targetName: "TestTarget",
+            dependencies: ["ArgumentParser"],
+            sourceFiles: ["main.swift": "import ArgumentParser\nprint(\"Hello\")\n"]
+        )
+        
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [Target(name: "TestTarget", type: .executable, dependencies: ["ArgumentParser"], path: nil)],
+            dependencies: ["ArgumentParser"],
+            path: tempDir.path
+        )
+        
+        let analyzer = DependencyAnalyzer()
+        let result = try await analyzer.analyzeTarget(packageInfo.targets[0], in: packageInfo)
+        
+        // Generate report in quiet mode
+        let quietReport = await analyzer.generateReport(for: [result], packageName: "TestPackage", verbose: false, quiet: true)
+        
+        // Should not contain success messages
+        #expect(!quietReport.contains("All dependencies are correctly declared"))
+        #expect(!quietReport.contains("All dependencies correct"))
+        
+        // Should be minimal output (just package header)
+        #expect(quietReport.contains("📦 Package: TestPackage"))
+    }
+    
+    @Test("Quiet mode shows problems only")
+    func testQuietModeWithProblems() async throws {
+        let tempDir = try createTestPackage(
+            packageName: "TestPackage",
+            targetName: "TestTarget",
+            dependencies: ["UnusedLibrary"],
+            sourceFiles: ["main.swift": "import MissingLibrary\nprint(\"Hello\")\n"]
+        )
+        
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [Target(name: "TestTarget", type: .executable, dependencies: ["UnusedLibrary"], path: nil)],
+            dependencies: ["UnusedLibrary"],
+            path: tempDir.path
+        )
+        
+        let analyzer = DependencyAnalyzer()
+        let result = try await analyzer.analyzeTarget(packageInfo.targets[0], in: packageInfo)
+        
+        // Generate report in quiet mode
+        let quietReport = await analyzer.generateReport(for: [result], packageName: "TestPackage", verbose: false, quiet: true)
+        
+        // Should show problems
+        #expect(quietReport.contains("Missing dependencies"))
+        #expect(quietReport.contains("Unused dependencies"))
+        #expect(quietReport.contains("MissingLibrary"))
+        #expect(quietReport.contains("UnusedLibrary"))
+        
+        // Should show target name when it has issues
+        #expect(quietReport.contains("Target: TestTarget"))
+    }
+    
+    @Test("Quiet mode with verbose flag combination")
+    func testQuietModeWithVerbose() async throws {
+        let tempDir = try createTestPackage(
+            packageName: "TestPackage",
+            targetName: "TestTarget",
+            dependencies: ["UsedLibrary"],
+            sourceFiles: ["main.swift": "import UsedLibrary\nimport MissingLibrary\n"]
+        )
+        
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [Target(name: "TestTarget", type: .executable, dependencies: ["UsedLibrary"], path: nil)],
+            dependencies: ["UsedLibrary"],
+            path: tempDir.path
+        )
+        
+        let analyzer = DependencyAnalyzer()
+        let result = try await analyzer.analyzeTarget(packageInfo.targets[0], in: packageInfo)
+        
+        // Generate report in quiet + verbose mode
+        let quietVerboseReport = await analyzer.generateReport(for: [result], packageName: "TestPackage", verbose: true, quiet: true)
+        
+        // Should show problems
+        #expect(quietVerboseReport.contains("Missing dependencies"))
+        #expect(quietVerboseReport.contains("MissingLibrary"))
+        
+        // Should not show correct dependencies (quiet overrides verbose)
+        #expect(!quietVerboseReport.contains("Correct dependencies"))
+        #expect(!quietVerboseReport.contains("Source files:"))
+    }
+    
+    @Test("Quiet mode JSON output filters targets")
+    func testQuietModeJSON() async throws {
+        let tempDir = try createTestPackage(
+            packageName: "TestPackage",
+            targetName: "TestTarget",
+            dependencies: ["ArgumentParser"],
+            sourceFiles: ["main.swift": "import ArgumentParser\nprint(\"Hello\")\n"]
+        )
+        
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [Target(name: "TestTarget", type: .executable, dependencies: ["ArgumentParser"], path: nil)],
+            dependencies: ["ArgumentParser"],
+            path: tempDir.path
+        )
+        
+        let analyzer = DependencyAnalyzer()
+        let result = try await analyzer.analyzeTarget(packageInfo.targets[0], in: packageInfo)
+        
+        // Generate JSON report in quiet mode
+        let quietJsonReport = try await analyzer.generateJSONReport(for: [result], packageName: "TestPackage", quiet: true)
+        
+        // Should not include targets with no issues (empty targets array)
+        #expect(quietJsonReport.contains("\"targets\" : ["))
+        #expect(quietJsonReport.contains("\"targets\" : [\n\n  ]"))
+    }
+    
+    @Test("Quiet mode JSON output includes targets with problems")
+    func testQuietModeJSONWithProblems() async throws {
+        let tempDir = try createTestPackage(
+            packageName: "TestPackage",
+            targetName: "TestTarget",
+            dependencies: [],
+            sourceFiles: ["main.swift": "import MissingLibrary\nprint(\"Hello\")\n"]
+        )
+        
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [Target(name: "TestTarget", type: .executable, dependencies: [], path: nil)],
+            dependencies: [],
+            path: tempDir.path
+        )
+        
+        let analyzer = DependencyAnalyzer()
+        let result = try await analyzer.analyzeTarget(packageInfo.targets[0], in: packageInfo)
+        
+        // Generate JSON report in quiet mode
+        let quietJsonReport = try await analyzer.generateJSONReport(for: [result], packageName: "TestPackage", quiet: true)
+        
+        // Should include targets with issues
+        #expect(quietJsonReport.contains("\"name\" : \"TestTarget\""))
+        #expect(quietJsonReport.contains("\"missingDependencies\""))
+        #expect(quietJsonReport.contains("\"MissingLibrary\""))
+    }
+    
     private func createTestPackage(
         packageName: String,
         targetName: String,
