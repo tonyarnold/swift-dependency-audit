@@ -141,6 +141,7 @@ public actor ImportScanner {
         // Common Swift standard library and platform modules that don't require explicit dependencies
         let standardModules: Set<String> = [
             "Swift",
+            "Testing",
             "Foundation",
             "Dispatch",
             "CoreFoundation",
