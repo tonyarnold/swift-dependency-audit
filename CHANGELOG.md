@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Initial release preparation
-- README.md with comprehensive documentation
-- MIT License for open source distribution
-- Comprehensive .gitignore for Swift projects
-
 ## [1.0.0] - 2025-07-16
 
 ### Added
@@ -28,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Parallel processing with Swift TaskGroup for high performance
   - Concurrent file scanning across multiple CPU cores
   - Optimized processing for large codebases
+  - Parallel file scanning using TaskGroup
+  - Optimized regex patterns for import detection
+  - Efficient memory usage for large project analysis
+  - Concurrent processing of multiple targets
 
 - **CLI Interface**
   - Built with Swift Argument Parser
@@ -37,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test target exclusion (`--exclude-tests`)
   - Verbose output mode (`--verbose`)
   - No-color output option (`--no-color`)
+  - Quiet mode (`--quiet`) to show only problems
 
 - **Output Formats**
   - Colored terminal output with ANSI escape sequences
@@ -56,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detailed error messages with context
 
 - **Testing**
-  - Complete test suite with 30 tests
+  - Complete test suite with 38 tests
   - ImportScanner regex parsing tests
   - PackageParser Package.swift parsing tests
   - DependencyAnalyzer logic tests
@@ -64,18 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - End-to-end integration tests
   - Performance tests for large codebases
 
+- **Project Setup**
+  - Initial release preparation
+  - README.md with comprehensive documentation
+  - MIT License for open source distribution
+  - Comprehensive .gitignore for Swift projects
+
 ### Technical Details
 - **Language**: Swift 6.1+
 - **Concurrency**: Modern Swift concurrency with strict safety
 - **Dependencies**: Swift Argument Parser
-- **Platforms**: macOS 14.0+, Linux (Swift on Linux)
+- **Platforms**: macOS 15.0+, iOS 18.0+, tvOS 18.0+, watchOS 11.0+, macCatalyst 18.0+
 - **Architecture**: Library/executable split for testability
+- **Executable**: `swift-dependency-audit`
 
-### Performance
-- Parallel file scanning using TaskGroup
-- Optimized regex patterns for import detection
-- Efficient memory usage for large project analysis
-- Concurrent processing of multiple targets
-
-[Unreleased]: https://github.com/yourusername/DependentImportScanner/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/DependentImportScanner/releases/tag/v1.0.0
+[Unreleased]: https://github.com/yourusername/SwiftDependencyAudit/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/yourusername/SwiftDependencyAudit/releases/tag/v1.0.0

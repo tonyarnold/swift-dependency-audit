@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import DependentImportScannerLib
+@testable import SwiftDependencyAuditLib
 
 @Suite("Whitelist Functionality Tests")
 struct WhitelistTests {

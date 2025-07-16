@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import DependentImportScannerLib
+@testable import SwiftDependencyAuditLib
 
 @Suite("PackageParser Tests")
 struct PackageParserTests {

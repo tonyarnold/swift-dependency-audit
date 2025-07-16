@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import DependentImportScannerLib
+@testable import SwiftDependencyAuditLib
 
 @Suite("Integration Tests")
 struct IntegrationTests {

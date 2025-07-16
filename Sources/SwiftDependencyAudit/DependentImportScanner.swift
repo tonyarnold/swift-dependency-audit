@@ -1,13 +1,13 @@
 import ArgumentParser
-import DependentImportScannerLib
+import SwiftDependencyAuditLib
 import Foundation
 
 @main
-public struct DependentImportScanner: AsyncParsableCommand {
+public struct SwiftDependencyAudit: AsyncParsableCommand {
     public init() {}
 
     public static let configuration = CommandConfiguration(
-        commandName: "DependentImportScanner",
+        commandName: "swift-dependency-audit",
         abstract: "Analyze Swift package dependencies and imports",
         discussion: """
             This tool analyzes Swift Package.swift files, scans source directories for import statements,

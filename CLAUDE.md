@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DependentImportScanner is a Swift CLI tool that analyzes Swift Package.swift files, scans target source directories for import statements, and compares declared dependencies against actual usage. Built with Swift 6.1+, the tool provides parallel processing, colored output, and comprehensive dependency validation.
+SwiftDependencyAudit is a Swift CLI tool that analyzes Swift Package.swift files, scans target source directories for import statements, and compares declared dependencies against actual usage. Built with Swift 6.1+, the tool provides parallel processing, colored output, and comprehensive dependency validation.
 
 **Key Features:**
 - Analyzes Package.swift files and extracts target dependencies
@@ -25,7 +25,7 @@ swift build
 
 ### Running
 ```bash
-swift run
+swift run swift-dependency-audit
 ```
 
 ### Testing
@@ -44,16 +44,16 @@ swift test
 
 This is a Swift Package Manager (SPM) project with library/executable split for testing:
 - **Package.swift**: Defines package with library and executable targets
-- **Sources/DependentImportScannerLib/**: Core library components (public API)
-  - **DependentImportScanner.swift**: CLI interface with Swift Argument Parser
+- **Sources/SwiftDependencyAuditLib/**: Core library components (public API)
+  - **SwiftDependencyAudit.swift**: CLI interface with Swift Argument Parser
   - **PackageParser.swift**: Package.swift parsing logic
   - **ImportScanner.swift**: Source file import scanning with regex
   - **DependencyAnalyzer.swift**: Comparison and analysis logic
   - **ParallelProcessor.swift**: TaskGroup-based parallel processing
   - **ColorOutput.swift**: ANSI terminal color support
   - **Models.swift**: Data structures and types
-- **Sources/DependentImportScanner/**: Executable entry point
-- **Tests/DependentImportScannerTests/**: Comprehensive test suite
+- **Sources/SwiftDependencyAudit/**: Executable entry point
+- **Tests/SwiftDependencyAuditTests/**: Comprehensive test suite
 
 **Dependencies:**
 - Swift Argument Parser for CLI interface
@@ -63,23 +63,23 @@ This is a Swift Package Manager (SPM) project with library/executable split for 
 ## File Structure
 
 ```
-DependentImportScanner/
+SwiftDependencyAudit/
 ├── Package.swift                    # Package definition with library/executable targets
 ├── PROJECT_PLAN.md                  # Detailed project plan and implementation guide
 ├── CLAUDE.md                        # This file - development guidance
 ├── Sources/
-│   ├── DependentImportScannerLib/   # Core library (public API for testing)
-│   │   ├── DependentImportScanner.swift    # CLI interface
+│   ├── SwiftDependencyAuditLib/     # Core library (public API for testing)
+│   │   ├── SwiftDependencyAudit.swift      # CLI interface
 │   │   ├── PackageParser.swift             # Package.swift parsing
 │   │   ├── ImportScanner.swift             # Import scanning with regex
 │   │   ├── DependencyAnalyzer.swift        # Analysis logic
 │   │   ├── ParallelProcessor.swift         # Parallel processing
 │   │   ├── ColorOutput.swift               # Terminal colors
 │   │   └── Models.swift                    # Data structures
-│   └── DependentImportScanner/      # Executable entry point
-│       └── main.swift               # CLI main function
+│   └── SwiftDependencyAudit/        # Executable entry point
+│       └── SwiftDependencyAudit.swift      # CLI main function
 └── Tests/
-    └── DependentImportScannerTests/ # Comprehensive test suite
+    └── SwiftDependencyAuditTests/   # Comprehensive test suite
         ├── ImportScannerTests.swift        # Import parsing tests
         ├── PackageParserTests.swift        # Package parsing tests
         ├── DependencyAnalyzerTests.swift   # Analysis logic tests
@@ -101,17 +101,17 @@ DependentImportScanner/
 
 ```bash
 # Analyze current directory
-swift run DependentImportScanner
+swift run swift-dependency-audit
 
 # Analyze specific package
-swift run DependentImportScanner /path/to/package
+swift run swift-dependency-audit /path/to/package
 
 # Use whitelist to ignore system frameworks
-swift run DependentImportScanner --whitelist "Foundation,SwiftUI,AppKit,UIKit"
+swift run swift-dependency-audit --whitelist "Foundation,SwiftUI,AppKit,UIKit"
 
 # Options
-swift run DependentImportScanner --no-color --verbose --json
-swift run DependentImportScanner --target MyTarget --exclude-tests
+swift run swift-dependency-audit --no-color --verbose --json
+swift run swift-dependency-audit --target MyTarget --exclude-tests
 ```
 
 ## Implementation Status
@@ -134,10 +134,10 @@ All core features have been implemented and tested:
 
 **Usage:** 
 ```bash
-swift run DependentImportScanner --help
-swift run DependentImportScanner /path/to/package
-swift run DependentImportScanner --verbose --json
-swift run DependentImportScanner --whitelist "Foundation,SwiftUI,AppKit"
+swift run swift-dependency-audit --help
+swift run swift-dependency-audit /path/to/package
+swift run swift-dependency-audit --verbose --json
+swift run swift-dependency-audit --whitelist "Foundation,SwiftUI,AppKit"
 ```
 
 See PROJECT_PLAN.md for detailed implementation phases and technical specifications.

@@ -1,4 +1,4 @@
-# DependentImportScanner
+# SwiftDependencyAudit
 
 A Swift CLI tool that analyzes Swift Package.swift files, scans target source directories for import statements, and compares declared dependencies against actual usage to identify missing or unused dependencies.
 
@@ -20,12 +20,12 @@ A Swift CLI tool that analyzes Swift Package.swift files, scans target source di
 Clone the repository and build:
 
 ```bash
-git clone https://github.com/yourusername/DependentImportScanner.git
-cd DependentImportScanner
+git clone https://github.com/yourusername/SwiftDependencyAudit.git
+cd SwiftDependencyAudit
 swift build -c release
 ```
 
-The executable will be available at `.build/release/DependentImportScanner`.
+The executable will be available at `.build/release/swift-dependency-audit`.
 
 ### Homebrew (Coming Soon)
 
@@ -39,10 +39,10 @@ brew install dependentimportscanner
 
 ```bash
 # Analyze current directory
-swift run DependentImportScanner
+swift run swift-dependency-audit
 
 # Analyze specific package
-swift run DependentImportScanner /path/to/package
+swift run swift-dependency-audit /path/to/package
 
 # Use built executable
 .build/release/DependentImportScanner /path/to/package
@@ -72,16 +72,16 @@ OPTIONS:
 
 ```bash
 # Verbose analysis with custom whitelist
-swift run DependentImportScanner --verbose --whitelist "Foundation,SwiftUI,AppKit,UIKit"
+swift run swift-dependency-audit --verbose --whitelist "Foundation,SwiftUI,AppKit,UIKit"
 
 # JSON output for CI/automation
-swift run DependentImportScanner --json --no-color
+swift run swift-dependency-audit --json --no-color
 
 # Analyze only a specific target
-swift run DependentImportScanner --target MyLibrary
+swift run swift-dependency-audit --target MyLibrary
 
 # Exclude test targets from analysis
-swift run DependentImportScanner --exclude-tests
+swift run swift-dependency-audit --exclude-tests
 ```
 
 ## Sample Output

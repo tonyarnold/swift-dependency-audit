@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "DependentImportScanner",
+    name: "SwiftDependencyAudit",
     platforms: [
         .macOS(.v15),
         .macCatalyst(.v18),
@@ -10,23 +10,26 @@ let package = Package(
         .tvOS(.v18),
         .watchOS(.v11),
     ],
+    products: [
+        .executable(name: "swift-dependency-audit", targets: ["SwiftDependencyAudit"])
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.1")
     ],
     targets: [
         .target(
-            name: "DependentImportScannerLib",
+            name: "SwiftDependencyAuditLib",
         ),
         .executableTarget(
-            name: "DependentImportScanner",
+            name: "SwiftDependencyAudit",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                "DependentImportScannerLib"
+                "SwiftDependencyAuditLib"
             ]
         ),
         .testTarget(
-            name: "DependentImportScannerTests",
-            dependencies: ["DependentImportScannerLib"]
+            name: "SwiftDependencyAuditTests",
+            dependencies: ["SwiftDependencyAuditLib"]
         ),
     ]
 )
