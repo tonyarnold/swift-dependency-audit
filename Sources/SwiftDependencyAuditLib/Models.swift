@@ -40,10 +40,12 @@ public struct PackageInfo: Sendable {
 public struct ImportInfo: Sendable, Hashable {
     public let moduleName: String
     public let isTestable: Bool
+    public let lineNumber: Int?
     
-    public init(moduleName: String, isTestable: Bool = false) {
+    public init(moduleName: String, isTestable: Bool = false, lineNumber: Int? = nil) {
         self.moduleName = moduleName
         self.isTestable = isTestable
+        self.lineNumber = lineNumber
     }
 }
 

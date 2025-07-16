@@ -141,3 +141,7 @@ swift run swift-dependency-audit --whitelist "Foundation,SwiftUI,AppKit"
 ```
 
 See PROJECT_PLAN.md for detailed implementation phases and technical specifications.
+
+## Development Practices
+
+- Always describe coherent, completed changes in the CHANGELOG, and update the README when changes affect what is documented there

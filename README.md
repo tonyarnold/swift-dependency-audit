@@ -9,7 +9,7 @@ A Swift CLI tool that analyzes Swift Package.swift files, scans target source di
 - **Import Scanning**: Uses regex to scan Swift source files for import statements (including `@testable` imports)
 - **Configurable Whitelist**: Filter out system frameworks (Foundation, SwiftUI, AppKit, etc.)
 - **Parallel Processing**: High-performance scanning using Swift's TaskGroup concurrency
-- **Multiple Output Formats**: Colored terminal output or JSON for automation
+- **Multiple Output Formats**: Colored terminal output, JSON, Xcode-compatible, or GitHub Actions format
 - **Target Filtering**: Analyze specific targets or exclude test targets
 - **Swift 6.1+ Compatible**: Built with modern Swift concurrency and strict typing
 
@@ -45,7 +45,7 @@ swift run swift-dependency-audit /path/to/package
 ### Command Line Options
 
 ```
-USAGE: swift-dependency-audit [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--json] [--whitelist <whitelist>]
+USAGE: swift-dependency-audit [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--json] [--quiet] [--whitelist <whitelist>] [--output-format <output-format>]
 
 ARGUMENTS:
   <path>                  Path to Package.swift or package directory (default: current directory)
@@ -56,8 +56,11 @@ OPTIONS:
   --target <target>       Analyze specific target only
   --exclude-tests         Skip test targets
   --json                  Output results in JSON format
+  -q, --quiet             Only show problems, suppress success messages
   --whitelist <whitelist> Comma-separated list of system imports to ignore
                           (e.g., Foundation,SwiftUI,AppKit)
+  --output-format <format> Output format: default, xcode, or github-actions
+                          (default: default)
   --version               Show the version.
   -h, --help              Show help information.
 ```
@@ -76,6 +79,15 @@ swift run swift-dependency-audit --target MyLibrary
 
 # Exclude test targets from analysis
 swift run swift-dependency-audit --exclude-tests
+
+# Xcode-compatible output for IDE integration
+swift run swift-dependency-audit --output-format xcode
+
+# GitHub Actions format for CI/CD workflows
+swift run swift-dependency-audit --output-format github-actions
+
+# Quiet mode with Xcode format (only show problems)
+swift run swift-dependency-audit --output-format xcode --quiet
 ```
 
 ## Sample Output
@@ -124,6 +136,26 @@ swift run swift-dependency-audit --exclude-tests
 }
 ```
 
+### Xcode Output Format
+
+Perfect for IDE integration and build systems:
+
+```
+/path/to/Sources/MyLibrary/NetworkManager.swift:15: error: Missing dependency 'Alamofire' is imported but not declared in Package.swift
+/path/to/Package.swift:25: warning: Unused dependency 'SwiftyJSON' is declared but never imported
+/path/to/Package.swift:26: warning: Unused dependency 'Kingfisher' is declared but never imported
+```
+
+### GitHub Actions Output Format
+
+Creates rich annotations in CI/CD workflows:
+
+```
+::error file=Sources/MyLibrary/NetworkManager.swift,line=15::Missing dependency 'Alamofire' is imported but not declared in Package.swift
+::warning file=Package.swift,line=25::Unused dependency 'SwiftyJSON' is declared but never imported
+::warning file=Package.swift,line=26::Unused dependency 'Kingfisher' is declared but never imported
+```
+
 ## How It Works
 
 1. **Parse Package.swift**: Extracts package information and target dependencies
@@ -134,11 +166,14 @@ swift run swift-dependency-audit --exclude-tests
 
 ## Use Cases
 
-- **CI/CD Integration**: Validate dependencies in automated builds
+- **IDE Integration**: Seamless Xcode integration with clickable error/warning annotations
+- **CI/CD Integration**: Validate dependencies in automated builds with GitHub Actions support
+- **Swift Build Plugins**: Perfect output formats for Swift Package Manager build plugins
 - **Code Quality**: Identify unused dependencies bloating your package
 - **Dependency Auditing**: Ensure all imports are properly declared
 - **Package Cleanup**: Find and remove unnecessary dependencies
 - **Migration Assistance**: Verify dependencies when updating packages
+- **Automated Workflows**: Rich annotations in GitHub Actions with file/line linking
 
 ## Requirements
 

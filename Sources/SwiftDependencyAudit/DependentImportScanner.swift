@@ -2,6 +2,12 @@ import ArgumentParser
 import SwiftDependencyAuditLib
 import Foundation
 
+public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
+    case `default` = "default"
+    case xcode = "xcode"
+    case githubActions = "github-actions"
+}
+
 @main
 public struct SwiftDependencyAudit: AsyncParsableCommand {
     public init() {}
@@ -41,6 +47,11 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
         name: .long,
         help: "Comma-separated list of system imports to ignore (e.g., Foundation,SwiftUI,AppKit)")
     public var whitelist: String?
+
+    @Option(
+        name: .long,
+        help: "Output format: default, xcode, or github-actions")
+    public var outputFormat: OutputFormat = .default
 
     public func run() async throws {
         // Configure color output
@@ -103,8 +114,18 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
                     for: results, packageName: packageInfo.name, quiet: quiet)
                 print(jsonReport)
             } else {
-                let report = await analyzer.generateReport(
-                    for: results, packageName: packageInfo.name, verbose: verbose, quiet: quiet)
+                let report: String
+                switch outputFormat {
+                case .default:
+                    report = await analyzer.generateReport(
+                        for: results, packageName: packageInfo.name, verbose: verbose, quiet: quiet)
+                case .xcode:
+                    report = await analyzer.generateXcodeReport(
+                        for: results, packagePath: path)
+                case .githubActions:
+                    report = await analyzer.generateGitHubActionsReport(
+                        for: results, packagePath: path)
+                }
                 print(report)
 
                 // Exit with error code if issues found

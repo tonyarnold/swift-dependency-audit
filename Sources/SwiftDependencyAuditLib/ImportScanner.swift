@@ -50,7 +50,7 @@ public actor ImportScanner {
         
         let lines = content.components(separatedBy: .newlines)
         
-        for line in lines {
+        for (lineIndex, line) in lines.enumerated() {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
             // Skip comments and empty lines
@@ -61,10 +61,11 @@ public actor ImportScanner {
             if let match = trimmedLine.firstMatch(of: importRegex) {
                 let moduleName = String(match.1)
                 let isTestable = trimmedLine.contains("@testable")
+                let lineNumber = lineIndex + 1 // Convert to 1-based line numbering
                 
                 // Skip standard library, platform imports, and custom whitelist items
                 if !isStandardLibraryModule(moduleName) && !customWhitelist.contains(moduleName) {
-                    imports.insert(ImportInfo(moduleName: moduleName, isTestable: isTestable))
+                    imports.insert(ImportInfo(moduleName: moduleName, isTestable: isTestable, lineNumber: lineNumber))
                 }
             }
         }

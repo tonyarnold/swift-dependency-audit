@@ -206,4 +206,76 @@ public actor DependencyAnalyzer {
         
         return jsonString
     }
+    
+    public func generateXcodeReport(for results: [AnalysisResult], packagePath: String) async -> String {
+        var output: [String] = []
+        
+        for result in results {
+            // Generate errors for missing dependencies
+            for missingDep in result.missingDependencies.sorted() {
+                // Find the source file and line number where this dependency is imported
+                for sourceFile in result.sourceFiles {
+                    for importInfo in sourceFile.imports {
+                        if importInfo.moduleName == missingDep {
+                            let message = XcodeOutput.missingDependencyError(
+                                dependency: missingDep,
+                                file: sourceFile.path,
+                                line: importInfo.lineNumber
+                            )
+                            output.append(message)
+                            break
+                        }
+                    }
+                }
+            }
+            
+            // Generate warnings for unused dependencies
+            for unusedDep in result.unusedDependencies.sorted() {
+                let packageFile = URL(fileURLWithPath: packagePath).appendingPathComponent("Package.swift").path
+                let message = XcodeOutput.unusedDependencyWarning(
+                    dependency: unusedDep,
+                    packageFile: packageFile
+                )
+                output.append(message)
+            }
+        }
+        
+        return output.joined(separator: "\n")
+    }
+    
+    public func generateGitHubActionsReport(for results: [AnalysisResult], packagePath: String) async -> String {
+        var output: [String] = []
+        
+        for result in results {
+            // Generate errors for missing dependencies
+            for missingDep in result.missingDependencies.sorted() {
+                // Find the source file and line number where this dependency is imported
+                for sourceFile in result.sourceFiles {
+                    for importInfo in sourceFile.imports {
+                        if importInfo.moduleName == missingDep {
+                            let message = GitHubActionsOutput.missingDependencyError(
+                                dependency: missingDep,
+                                file: sourceFile.path,
+                                line: importInfo.lineNumber
+                            )
+                            output.append(message)
+                            break
+                        }
+                    }
+                }
+            }
+            
+            // Generate warnings for unused dependencies
+            for unusedDep in result.unusedDependencies.sorted() {
+                let packageFile = URL(fileURLWithPath: packagePath).appendingPathComponent("Package.swift").path
+                let message = GitHubActionsOutput.unusedDependencyWarning(
+                    dependency: unusedDep,
+                    packageFile: packageFile
+                )
+                output.append(message)
+            }
+        }
+        
+        return output.joined(separator: "\n")
+    }
 }

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **IDE and CI/CD Integration**
+  - New `--output-format` option supporting `default`, `xcode`, and `github-actions` output formats
+  - Xcode-compatible error/warning output for seamless IDE integration
+  - GitHub Actions workflow commands for rich CI/CD annotations
+  - Precise line number tracking for import statements
+  - File-specific error reporting with exact line numbers
+
+### Technical Details
+- Enhanced `ImportInfo` model with line number tracking
+- Added `XcodeOutput` module for Xcode-compatible format (`file:line: error: message`)
+- Added `GitHubActionsOutput` module for GitHub Actions format (`::error file=path,line=N::message`)
+- Updated `ImportScanner` to capture line numbers during regex matching
+- Extended `DependencyAnalyzer` with `generateXcodeReport()` and `generateGitHubActionsReport()` methods
+- All existing functionality preserved with backward compatibility
+
 ## [1.0.0] - 2025-07-16
 
 ### Added
