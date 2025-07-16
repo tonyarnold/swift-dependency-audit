@@ -6,6 +6,17 @@ public actor DependencyAnalyzer {
     public init() {}
     
     public func analyzeTarget(_ target: Target, in packageInfo: PackageInfo, customWhitelist: Set<String> = []) async throws -> AnalysisResult {
+        // Skip source scanning for target types that don't have Swift source files
+        if target.type == .systemLibrary || target.type == .binaryTarget {
+            return AnalysisResult(
+                target: target,
+                missingDependencies: [],
+                unusedDependencies: [],
+                correctDependencies: [],
+                sourceFiles: []
+            )
+        }
+        
         // Scan source files for imports
         let sourceFiles = try await importScanner.scanDirectory(at: packageInfo.path, targetName: target.name, customWhitelist: customWhitelist)
         
@@ -66,8 +77,9 @@ public actor DependencyAnalyzer {
     
     private func getInternalModules(from packageInfo: PackageInfo, excluding currentTarget: Target) -> Set<String> {
         // Get names of other targets in the same package that can be imported
+        // Exclude test targets, system libraries, and binary targets from being considered as importable modules
         return Set(packageInfo.targets
-            .filter { $0.name != currentTarget.name && $0.type != .test }
+            .filter { $0.name != currentTarget.name && $0.type != .test && $0.type != .systemLibrary && $0.type != .binaryTarget }
             .map { $0.name })
     }
     
@@ -112,6 +124,9 @@ public actor DependencyAnalyzer {
         case .executable: "🔧"
         case .library: "📚"
         case .test: "🧪"
+        case .systemLibrary: "🏛️"
+        case .binaryTarget: "📦"
+        case .plugin: "🔌"
         }
         
         if !result.hasIssues && quiet {

@@ -109,6 +109,9 @@ public actor PackageParser {
         let libraryRegex = /\.target\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         let testRegex = /\.testTarget\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         let macroRegex = /\.macro\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
+        let systemLibraryRegex = /\.systemLibrary\s*\(\s*name:\s*"([^"]+)"[^)]*\)/
+        let binaryTargetRegex = /\.binaryTarget\s*\(\s*name:\s*"([^"]+)"[^)]*\)/
+        let pluginRegex = /\.plugin\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         
         // Parse executable targets
         for match in targetsSection.matches(of: executableRegex) {
@@ -166,9 +169,47 @@ public actor PackageParser {
             ))
         }
         
+        // Parse system library targets (no dependencies to parse)
+        for match in targetsSection.matches(of: systemLibraryRegex) {
+            let name = String(match.1)
+            
+            targets.append(Target(
+                name: name,
+                type: .systemLibrary,
+                dependencies: [], // System libraries don't have Swift dependencies
+                path: nil
+            ))
+        }
+        
+        // Parse binary targets (no dependencies to parse)
+        for match in targetsSection.matches(of: binaryTargetRegex) {
+            let name = String(match.1)
+            
+            targets.append(Target(
+                name: name,
+                type: .binaryTarget,
+                dependencies: [], // Binary targets don't have Swift dependencies
+                path: nil
+            ))
+        }
+        
+        // Parse plugin targets
+        for match in targetsSection.matches(of: pluginRegex) {
+            let name = String(match.1)
+            let dependenciesStr = String(match.2)
+            let dependencies = parseDependencyList(dependenciesStr)
+            
+            targets.append(Target(
+                name: name,
+                type: .plugin,
+                dependencies: dependencies,
+                path: nil
+            ))
+        }
+        
         // Parse targets without dependencies by looking for all target declarations
         // and seeing which ones don't have dependency arrays
-        let allTargetRegex = /\.(target|executableTarget|testTarget|macro)\s*\(\s*name:\s*"([^"]+)"([^)]*)\)/
+        let allTargetRegex = /\.(target|executableTarget|testTarget|macro|plugin)\s*\(\s*name:\s*"([^"]+)"([^)]*)\)/
         var targetNamesWithDeps = Set<String>()
         for target in targets {
             targetNamesWithDeps.insert(target.name)
@@ -194,6 +235,8 @@ public actor PackageParser {
                     targetType = .test
                 case "macro":
                     targetType = .library // Treat macros as library targets for dependency analysis
+                case "plugin":
+                    targetType = .plugin
                 default: // "target"
                     targetType = .library
                 }

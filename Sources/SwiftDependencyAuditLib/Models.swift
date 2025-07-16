@@ -17,6 +17,9 @@ public struct Target: Sendable {
         case executable
         case library
         case test
+        case systemLibrary
+        case binaryTarget
+        case plugin
     }
 }
 
