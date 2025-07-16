@@ -69,8 +69,8 @@ jobs:
       - name: Test binary functionality
         run: |
           ./build/universal/swift-dependency-audit --help
-          ./build/universal/swift-dependency-audit --version || true
-          ./build/universal/swift-dependency-audit . --verbose
+          ./build/universal/swift-dependency-audit --version --exclude-tests || true
+          ./build/universal/swift-dependency-audit . --verbose --exclude-tests
 
       - name: Create release archives
         run: |
