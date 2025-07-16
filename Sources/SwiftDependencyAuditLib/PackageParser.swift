@@ -1,6 +1,236 @@
 import Foundation
+import RegexBuilder
 
 public actor PackageParser {
+    
+    // MARK: - RegexBuilder DSL Components
+    
+    // Basic building blocks using RegexBuilder DSL
+    private var identifier: Regex<Substring> {
+        Regex {
+            /[a-zA-Z_]/
+            ZeroOrMore {
+                /[a-zA-Z0-9_]/
+            }
+        }
+    }
+    
+    private var quotedStringContent: Regex<(Substring, Substring)> {
+        Regex {
+            "\""
+            Capture {
+                ZeroOrMore {
+                    /[^"\\]/
+                }
+            }
+            "\""
+        }
+    }
+    
+    private var whitespace: Regex<Substring> {
+        Regex {
+            ZeroOrMore(.whitespace)
+        }
+    }
+    
+    // MARK: - Package.swift Specific Components
+    
+    // Target type patterns using RegexBuilder
+    private var targetTypePattern: Regex<(Substring, Substring)> {
+        Regex {
+            "."
+            Capture {
+                ChoiceOf {
+                    "executableTarget"
+                    "testTarget"
+                    "macro"
+                    "plugin"
+                    "systemLibrary"
+                    "binaryTarget"
+                    "target"
+                }
+            }
+            whitespace
+            "("
+        }
+    }
+    
+    // Quoted identifier (name: "TargetName")
+    private var nameParameter: Regex<(Substring, Substring, Substring)> {
+        Regex {
+            whitespace
+            "name"
+            whitespace
+            ":"
+            whitespace
+            Capture {
+                quotedStringContent
+            }
+        }
+    }
+    
+    // Dependencies array pattern (simplified for now)
+    private var dependenciesParameter: Regex<(Substring, Substring)> {
+        Regex {
+            whitespace
+            "dependencies"
+            whitespace
+            ":"
+            whitespace
+            "["
+            Capture {
+                ZeroOrMore(.reluctant) {
+                    /[^\[\]]/
+                }
+            }
+            "]"
+        }
+    }
+    
+    // Section extraction pattern (e.g., "targets: [...]") - simplified for now
+    private func sectionPattern(sectionName: String) -> Regex<(Substring, Substring)> {
+        Regex {
+            sectionName
+            whitespace
+            ":"
+            whitespace
+            "["
+            Capture {
+                ZeroOrMore(.reluctant) {
+                    /[^\[\]]/
+                }
+            }
+            "]"
+        }
+    }
+    
+    // Package declaration pattern
+    private var packagePattern: Regex<Substring> {
+        Regex {
+            "Package"
+            whitespace
+            "("
+        }
+    }
+    
+    // Target parsing using RegexBuilder DSL patterns
+    private func parseTargetsFromSection(_ targetsSection: String, packageContent: String) -> [Target] {
+        var targets: [Target] = []
+        
+        // Find all target declarations using RegexBuilder patterns
+        let targetDeclarations = findTargetDeclarationsWithRegexBuilder(in: targetsSection)
+        
+        for declaration in targetDeclarations {
+            if let target = parseTargetDeclarationWithRegexBuilder(declaration, packageContent: packageContent) {
+                targets.append(target)
+            }
+        }
+        
+        return targets
+    }
+    
+    // RegexBuilder-based target declaration finder
+    private func findTargetDeclarationsWithRegexBuilder(in content: String) -> [String] {
+        var declarations: [String] = []
+        var searchRange = content.startIndex..<content.endIndex
+        
+        // Find each target declaration using RegexBuilder pattern
+        while let match = content[searchRange].firstMatch(of: targetTypePattern) {
+            // Calculate the absolute start position
+            let absoluteStart = content.index(content.startIndex, offsetBy: content.distance(from: content.startIndex, to: match.range.lowerBound))
+            
+            // Find the matching closing parenthesis for this target declaration
+            if let endIndex = findMatchingClosingParenthesis(in: content, startingAfter: match.range.upperBound) {
+                let fullDeclaration = content[absoluteStart...endIndex]
+                declarations.append(String(fullDeclaration))
+                
+                // Move search range past this match
+                searchRange = content.index(after: endIndex)..<content.endIndex
+            } else {
+                break
+            }
+        }
+        
+        return declarations
+    }
+    
+    // Helper function to find matching closing parenthesis
+    private func findMatchingClosingParenthesis(in content: String, startingAfter: String.Index) -> String.Index? {
+        var depth = 1
+        var currentIndex = startingAfter
+        
+        while currentIndex < content.endIndex && depth > 0 {
+            let char = content[currentIndex]
+            if char == "(" {
+                depth += 1
+            } else if char == ")" {
+                depth -= 1
+            }
+            
+            if depth == 0 {
+                return currentIndex
+            }
+            
+            currentIndex = content.index(after: currentIndex)
+        }
+        
+        return nil
+    }
+    
+    // RegexBuilder-based target declaration parser
+    private func parseTargetDeclarationWithRegexBuilder(_ declaration: String, packageContent: String) -> Target? {
+        // Extract target type using RegexBuilder pattern
+        guard let typeMatch = declaration.firstMatch(of: targetTypePattern) else {
+            return nil
+        }
+        
+        let targetTypeStr = String(typeMatch.1)
+        let targetType: Target.TargetType
+        
+        switch targetTypeStr {
+        case "executableTarget":
+            targetType = .executable
+        case "testTarget":
+            targetType = .test
+        case "macro":
+            targetType = .library // Treat macros as library targets for dependency analysis
+        case "plugin":
+            targetType = .plugin
+        case "systemLibrary":
+            targetType = .systemLibrary
+        case "binaryTarget":
+            targetType = .binaryTarget
+        default: // "target"
+            targetType = .library
+        }
+        
+        // Extract name using RegexBuilder pattern
+        guard let nameMatch = declaration.firstMatch(of: nameParameter) else {
+            return nil
+        }
+        
+        // Extract the quoted content from the captured group (nameMatch.1 contains the quotedStringContent)
+        // nameMatch.1 is the full quoted string capture, nameMatch.2 is the content inside quotes
+        let name = String(nameMatch.2)
+        
+        // Extract dependencies if present using RegexBuilder pattern
+        if let dependenciesMatch = declaration.firstMatch(of: dependenciesParameter) {
+            let dependenciesStr = String(dependenciesMatch.1)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
+            
+            return Target(name: name, type: targetType, dependencyInfo: dependencyInfo, path: nil)
+        } else {
+            // No dependencies
+            return Target(name: name, type: targetType, dependencies: [], path: nil)
+        }
+    }
+    
+    private func extractQuotedContent(from quotedString: String) -> String {
+        if let match = quotedString.firstMatch(of: quotedStringContent) {
+            return String(match.1)
+        }
+        return quotedString.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    }
     
     public init() {}
     
@@ -103,109 +333,9 @@ public actor PackageParser {
         }
         
         
-        // Match different target types with more specific patterns to avoid cross-target matching
-        // Match only within the same target declaration by being more restrictive
-        let executableRegex = /\.executableTarget\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
-        let libraryRegex = /\.target\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
-        let testRegex = /\.testTarget\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
-        let macroRegex = /\.macro\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
-        let systemLibraryRegex = /\.systemLibrary\s*\(\s*name:\s*"([^"]+)"[^)]*\)/
-        let binaryTargetRegex = /\.binaryTarget\s*\(\s*name:\s*"([^"]+)"[^)]*\)/
-        let pluginRegex = /\.plugin\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         
-        // Parse executable targets
-        for match in targetsSection.matches(of: executableRegex) {
-            let name = String(match.1)
-            let dependenciesStr = String(match.2)
-            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
-            
-            targets.append(Target(
-                name: name,
-                type: .executable,
-                dependencyInfo: dependencyInfo,
-                path: nil
-            ))
-        }
-        
-        // Parse library targets
-        for match in targetsSection.matches(of: libraryRegex) {
-            let name = String(match.1)
-            let dependenciesStr = String(match.2)
-            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
-            
-            targets.append(Target(
-                name: name,
-                type: .library,
-                dependencyInfo: dependencyInfo,
-                path: nil
-            ))
-        }
-        
-        // Parse test targets
-        for match in targetsSection.matches(of: testRegex) {
-            let name = String(match.1)
-            let dependenciesStr = String(match.2)
-            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
-            
-            targets.append(Target(
-                name: name,
-                type: .test,
-                dependencyInfo: dependencyInfo,
-                path: nil
-            ))
-        }
-        
-        // Parse macro targets
-        for match in targetsSection.matches(of: macroRegex) {
-            let name = String(match.1)
-            let dependenciesStr = String(match.2)
-            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
-            
-            targets.append(Target(
-                name: name,
-                type: .library, // Treat macros as library targets for dependency analysis
-                dependencyInfo: dependencyInfo,
-                path: nil
-            ))
-        }
-        
-        // Parse system library targets (no dependencies to parse)
-        for match in targetsSection.matches(of: systemLibraryRegex) {
-            let name = String(match.1)
-            
-            targets.append(Target(
-                name: name,
-                type: .systemLibrary,
-                dependencies: [], // System libraries don't have Swift dependencies
-                path: nil
-            ))
-        }
-        
-        // Parse binary targets (no dependencies to parse)
-        for match in targetsSection.matches(of: binaryTargetRegex) {
-            let name = String(match.1)
-            
-            targets.append(Target(
-                name: name,
-                type: .binaryTarget,
-                dependencies: [], // Binary targets don't have Swift dependencies
-                path: nil
-            ))
-        }
-        
-        // Parse plugin targets
-        for match in targetsSection.matches(of: pluginRegex) {
-            let name = String(match.1)
-            let dependenciesStr = String(match.2)
-            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
-            
-            targets.append(Target(
-                name: name,
-                type: .plugin,
-                dependencyInfo: dependencyInfo,
-                path: nil
-            ))
-        }
+        // Use the new step-by-step target parsing approach
+        targets = parseTargetsFromSection(targetsSection, packageContent: packageContent)
         
         // Parse targets without dependencies by looking for all target declarations
         // and seeing which ones don't have dependency arrays
@@ -257,106 +387,74 @@ public actor PackageParser {
         // For targets section, we need to find the Package(..., targets: [...], ...) pattern
         // not the products section that might also contain targets: [...]
         if sectionName == "targets" {
-            // Find the Package( declaration first
-            guard let packageStart = content.range(of: "Package(") else {
-                return ""
-            }
-            
-            // Search for targets: [ after the Package( declaration
-            let searchRange = packageStart.upperBound..<content.endIndex
-            let searchContent = content[searchRange]
-            
-            // Find all occurrences of "targets: [" in the Package declaration
-            var lastTargetsRange: Range<String.Index>?
-            var searchIndex = searchContent.startIndex
-            
-            while let range = searchContent.range(of: "targets: [", range: searchIndex..<searchContent.endIndex) {
-                lastTargetsRange = range
-                searchIndex = range.upperBound
-            }
-            
-            guard let targetsRange = lastTargetsRange else {
-                return ""
-            }
-            
-            // Extract the targets array content
-            let startIndex = targetsRange.upperBound
-            var depth = 1
-            var currentIndex = startIndex
-            
-            // Find the matching closing bracket
-            while currentIndex < searchContent.endIndex && depth > 0 {
-                let char = searchContent[currentIndex]
-                if char == "[" {
-                    depth += 1
-                } else if char == "]" {
-                    depth -= 1
-                }
-                currentIndex = searchContent.index(after: currentIndex)
-            }
-            
-            guard depth == 0 else {
-                return ""
-            }
-            
-            return String(searchContent[startIndex..<searchContent.index(before: currentIndex)])
+            return extractTargetsSectionWithRegexBuilder(from: content)
         }
         
-        // For other sections, use the original logic
-        guard let sectionStart = content.range(of: "\(sectionName): [") else {
+        // For other sections, use RegexBuilder approach
+        guard let match = content.firstMatch(of: sectionPattern(sectionName: sectionName)) else {
             return ""
         }
         
-        let startIndex = sectionStart.upperBound
-        var depth = 1
-        var currentIndex = startIndex
-        
-        // Find the matching closing bracket
-        while currentIndex < content.endIndex && depth > 0 {
-            let char = content[currentIndex]
-            if char == "[" {
-                depth += 1
-            } else if char == "]" {
-                depth -= 1
-            }
-            currentIndex = content.index(after: currentIndex)
-        }
-        
-        guard depth == 0 else {
-            return ""
-        }
-        
-        return String(content[startIndex..<content.index(before: currentIndex)])
+        return String(match.1)
     }
     
+    // RegexBuilder-based targets section extraction
+    private func extractTargetsSectionWithRegexBuilder(from content: String) -> String {
+        // Find Package( first using RegexBuilder pattern
+        guard let packageMatch = content.firstMatch(of: packagePattern) else {
+            return ""
+        }
+        
+        let searchContent = content[packageMatch.range.upperBound...]
+        
+        // Look for targets: [balanced brackets] within the Package declaration using RegexBuilder
+        let targetsPattern = sectionPattern(sectionName: "targets")
+        
+        // Find the last occurrence of targets: in the Package declaration
+        var lastMatch: Regex<(Substring, Substring)>.Match?
+        for match in searchContent.matches(of: targetsPattern) {
+            lastMatch = match
+        }
+        
+        guard let match = lastMatch else {
+            return ""
+        }
+        
+        return String(match.1)
+    }
+    
+    // RegexBuilder-based variable targets section extraction
     private func extractVariableTargetsSection(from content: String) -> String {
-        // Look for: let targets: [Target] = [
-        let regex = /let\s+targets:\s*\[\s*Target\s*\]\s*=\s*\[/
-        
-        guard let match = content.firstMatch(of: regex) else {
-            return ""
-        }
-        
-        let startIndex = match.range.upperBound
-        var depth = 1
-        var currentIndex = startIndex
-        
-        // Find the matching closing bracket
-        while currentIndex < content.endIndex && depth > 0 {
-            let char = content[currentIndex]
-            if char == "[" {
-                depth += 1
-            } else if char == "]" {
-                depth -= 1
+        // Look for: let targets: [Target] = [balanced brackets] using RegexBuilder
+        let variableTargetsPattern = Regex {
+            "let"
+            whitespace
+            "targets"
+            whitespace
+            ":"
+            whitespace
+            "["
+            whitespace
+            "Target"
+            whitespace
+            "]"
+            whitespace
+            "="
+            whitespace
+            "["
+            Capture {
+                ZeroOrMore(.reluctant) {
+                    /[^\[\]]/
+                }
             }
-            currentIndex = content.index(after: currentIndex)
+            "]"
         }
         
-        guard depth == 0 else {
+        guard let match = content.firstMatch(of: variableTargetsPattern) else {
             return ""
         }
         
-        return String(content[startIndex..<content.index(before: currentIndex)])
+        return String(match.1)
     }
     
     private func parseDependencyList(_ dependenciesStr: String) -> [String] {
