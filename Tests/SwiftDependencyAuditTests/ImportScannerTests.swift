@@ -111,6 +111,7 @@ struct ImportScannerTests {
         let scanner = ImportScanner()
         let content = """
             import Swift
+            import Testing
             import Foundation
             import Dispatch
             import UIKit
