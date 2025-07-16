@@ -15,12 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Precise line number tracking for import statements
   - File-specific error reporting with exact line numbers
 
+### Fixed
+- **Line Number Reporting**
+  - Fixed incomplete line number capture in Xcode and GitHub Actions output formats
+  - Now reports all occurrences of missing dependencies across all source files with correct line numbers
+  - Removed premature loop termination that was causing missing line number information
+
 ### Technical Details
 - Enhanced `ImportInfo` model with line number tracking
 - Added `XcodeOutput` module for Xcode-compatible format (`file:line: error: message`)
 - Added `GitHubActionsOutput` module for GitHub Actions format (`::error file=path,line=N::message`)
 - Updated `ImportScanner` to capture line numbers during regex matching
 - Extended `DependencyAnalyzer` with `generateXcodeReport()` and `generateGitHubActionsReport()` methods
+- Fixed loop logic in `generateXcodeReport()` and `generateGitHubActionsReport()` to report all import occurrences
 - All existing functionality preserved with backward compatibility
 
 ## [1.0.0] - 2025-07-16

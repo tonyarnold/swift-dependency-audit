@@ -213,7 +213,7 @@ public actor DependencyAnalyzer {
         for result in results {
             // Generate errors for missing dependencies
             for missingDep in result.missingDependencies.sorted() {
-                // Find the source file and line number where this dependency is imported
+                // Find all source files and line numbers where this dependency is imported
                 for sourceFile in result.sourceFiles {
                     for importInfo in sourceFile.imports {
                         if importInfo.moduleName == missingDep {
@@ -223,7 +223,6 @@ public actor DependencyAnalyzer {
                                 line: importInfo.lineNumber
                             )
                             output.append(message)
-                            break
                         }
                     }
                 }
@@ -249,7 +248,7 @@ public actor DependencyAnalyzer {
         for result in results {
             // Generate errors for missing dependencies
             for missingDep in result.missingDependencies.sorted() {
-                // Find the source file and line number where this dependency is imported
+                // Find all source files and line numbers where this dependency is imported
                 for sourceFile in result.sourceFiles {
                     for importInfo in sourceFile.imports {
                         if importInfo.moduleName == missingDep {
@@ -259,7 +258,6 @@ public actor DependencyAnalyzer {
                                 line: importInfo.lineNumber
                             )
                             output.append(message)
-                            break
                         }
                     }
                 }
