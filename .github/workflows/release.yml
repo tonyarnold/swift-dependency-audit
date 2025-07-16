@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag name for the release"
+        required: true
+        default: "v1.0.0"
+
+jobs:
+  build-release:
+    name: Build Release Binaries
+    runs-on: macos-15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-release-
+            ${{ runner.os }}-spm-
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build for macOS (arm64)
+        run: |
+          swift build --configuration release --arch arm64
+          mkdir -p build/arm64
+          cp .build/arm64-apple-macosx/release/swift-dependency-audit build/arm64/
+
+      - name: Build for macOS (x86_64)
+        run: |
+          swift build --configuration release --arch x86_64
+          mkdir -p build/x86_64
+          cp .build/x86_64-apple-macosx/release/swift-dependency-audit build/x86_64/
+
+      - name: Create universal binary
+        run: |
+          mkdir -p build/universal
+          lipo -create -output build/universal/swift-dependency-audit \
+            build/arm64/swift-dependency-audit \
+            build/x86_64/swift-dependency-audit
+
+          # Verify the universal binary
+          lipo -info build/universal/swift-dependency-audit
+          file build/universal/swift-dependency-audit
+
+      - name: Test binary functionality
+        run: |
+          ./build/universal/swift-dependency-audit --help
+          ./build/universal/swift-dependency-audit --version || true
+          ./build/universal/swift-dependency-audit . --verbose
+
+      - name: Create release archives
+        run: |
+          # Create version info
+          VERSION="${{ github.event.release.tag_name || github.event.inputs.tag_name }}"
+          echo "Creating release for version: $VERSION"
+
+          # Create directories for archives
+          mkdir -p release
+
+          # Universal macOS binary
+          mkdir -p "swift-dependency-audit-$VERSION-macos-universal"
+          cp build/universal/swift-dependency-audit "swift-dependency-audit-$VERSION-macos-universal/"
+          cp LICENSE "swift-dependency-audit-$VERSION-macos-universal/" || echo "No LICENSE file found"
+          cp README.md "swift-dependency-audit-$VERSION-macos-universal/" || echo "No README.md file found"
+          tar -czf "release/swift-dependency-audit-$VERSION-macos-universal.tar.gz" "swift-dependency-audit-$VERSION-macos-universal"
+
+          # ARM64 macOS binary
+          mkdir -p "swift-dependency-audit-$VERSION-macos-arm64"
+          cp build/arm64/swift-dependency-audit "swift-dependency-audit-$VERSION-macos-arm64/"
+          cp LICENSE "swift-dependency-audit-$VERSION-macos-arm64/" || echo "No LICENSE file found"
+          cp README.md "swift-dependency-audit-$VERSION-macos-arm64/" || echo "No README.md file found"
+          tar -czf "release/swift-dependency-audit-$VERSION-macos-arm64.tar.gz" "swift-dependency-audit-$VERSION-macos-arm64"
+
+          # x86_64 macOS binary
+          mkdir -p "swift-dependency-audit-$VERSION-macos-x86_64"
+          cp build/x86_64/swift-dependency-audit "swift-dependency-audit-$VERSION-macos-x86_64/"
+          cp LICENSE "swift-dependency-audit-$VERSION-macos-x86_64/" || echo "No LICENSE file found"
+          cp README.md "swift-dependency-audit-$VERSION-macos-x86_64/" || echo "No README.md file found"
+          tar -czf "release/swift-dependency-audit-$VERSION-macos-x86_64.tar.gz" "swift-dependency-audit-$VERSION-macos-x86_64"
+
+      - name: Generate checksums
+        run: |
+          cd release
+          shasum -a 256 *.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          files: |
+            release/*.tar.gz
+            release/checksums.txt
+          body: |
+            ## Installation
+
+            Download the appropriate binary for your system:
+
+            - **Universal macOS** (recommended): `swift-dependency-audit-${{ github.event.release.tag_name }}-macos-universal.tar.gz`
+            - **macOS ARM64** (Apple Silicon): `swift-dependency-audit-${{ github.event.release.tag_name }}-macos-arm64.tar.gz`
+            - **macOS x86_64** (Intel): `swift-dependency-audit-${{ github.event.release.tag_name }}-macos-x86_64.tar.gz`
+
+            ### Quick Install
+            ```bash
+            # Download and install universal binary
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/swift-dependency-audit-${{ github.event.release.tag_name }}-macos-universal.tar.gz | tar -xz
+            sudo mv swift-dependency-audit-${{ github.event.release.tag_name }}-macos-universal/swift-dependency-audit /usr/local/bin/
+            ```
+
+            ### Verify Installation
+            ```bash
+            swift-dependency-audit --help
+            ```
+
+            ## Checksums
+            All binaries are signed with SHA256 checksums available in `checksums.txt`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts for manual dispatch
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: release-binaries
+          path: |
+            release/*.tar.gz
+            release/checksums.txt
+          retention-days: 30

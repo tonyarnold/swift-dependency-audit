@@ -1,0 +1,140 @@
+name: Cache Cleanup
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: 'Maximum age of caches to keep (in days)'
+        required: false
+        default: '30'
+        type: string
+
+jobs:
+  cleanup:
+    name: Clean up old caches
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get cache cleanup parameters
+      id: params
+      run: |
+        MAX_AGE_DAYS="${{ github.event.inputs.max_age_days || '30' }}"
+        echo "max_age_days=${MAX_AGE_DAYS}" >> $GITHUB_OUTPUT
+        echo "cleanup_date=$(date -d "${MAX_AGE_DAYS} days ago" '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+    
+    - name: List current caches
+      run: |
+        echo "Current caches in repository:"
+        gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${{ github.repository }}/actions/caches" \
+          --jq '.actions_caches[] | "\(.key) - \(.size_in_bytes) bytes - \(.created_at)"'
+      env:
+        GH_TOKEN: ${{ github.token }}
+    
+    - name: Clean up old caches
+      run: |
+        echo "Cleaning up caches older than ${{ steps.params.outputs.cleanup_date }}"
+        
+        # Get list of cache IDs older than specified date
+        CACHE_IDS=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${{ github.repository }}/actions/caches" \
+          --jq --arg cleanup_date "${{ steps.params.outputs.cleanup_date }}" \
+          '.actions_caches[] | select(.created_at < $cleanup_date) | .id')
+        
+        if [ -z "$CACHE_IDS" ]; then
+          echo "No old caches found to clean up"
+          exit 0
+        fi
+        
+        echo "Found caches to delete:"
+        echo "$CACHE_IDS"
+        
+        # Delete each cache
+        for cache_id in $CACHE_IDS; do
+          echo "Deleting cache ID: $cache_id"
+          gh api \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/caches/$cache_id" || true
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+    
+    - name: Clean up caches from deleted branches
+      run: |
+        echo "Cleaning up caches from non-existent branches"
+        
+        # Get all remote branches
+        git fetch --all
+        EXISTING_BRANCHES=$(git branch -r | sed 's/origin\///' | grep -v HEAD | tr -d ' ')
+        
+        # Get all cache keys
+        CACHE_KEYS=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${{ github.repository }}/actions/caches" \
+          --jq '.actions_caches[] | .key')
+        
+        # Find caches that might be from deleted branches
+        for cache_key in $CACHE_KEYS; do
+          # Extract potential branch name from cache key (this is heuristic)
+          # Cache keys often contain branch names or refs
+          if [[ "$cache_key" == *"refs/heads/"* ]]; then
+            BRANCH_IN_KEY=$(echo "$cache_key" | sed -n 's/.*refs\/heads\/\([^-]*\).*/\1/p')
+            if [ -n "$BRANCH_IN_KEY" ] && ! echo "$EXISTING_BRANCHES" | grep -q "^$BRANCH_IN_KEY$"; then
+              echo "Found cache from potentially deleted branch: $cache_key (branch: $BRANCH_IN_KEY)"
+              
+              # Get cache ID and delete
+              CACHE_ID=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/repos/${{ github.repository }}/actions/caches" \
+                --jq --arg key "$cache_key" \
+                '.actions_caches[] | select(.key == $key) | .id')
+              
+              if [ -n "$CACHE_ID" ]; then
+                echo "Deleting cache ID: $CACHE_ID"
+                gh api \
+                  -X DELETE \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "/repos/${{ github.repository }}/actions/caches/$CACHE_ID" || true
+              fi
+            fi
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+    
+    - name: Show cache statistics after cleanup
+      run: |
+        echo "Cache statistics after cleanup:"
+        CACHE_INFO=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/${{ github.repository }}/actions/caches")
+        
+        CACHE_COUNT=$(echo "$CACHE_INFO" | jq '.actions_caches | length')
+        TOTAL_SIZE=$(echo "$CACHE_INFO" | jq '.actions_caches | map(.size_in_bytes) | add // 0')
+        TOTAL_SIZE_MB=$((TOTAL_SIZE / 1024 / 1024))
+        
+        echo "Total caches: $CACHE_COUNT"
+        echo "Total size: ${TOTAL_SIZE_MB} MB"
+        echo "Remaining caches:"
+        echo "$CACHE_INFO" | jq '.actions_caches[] | "\(.key) - \(.size_in_bytes) bytes - \(.created_at)"'
+      env:
+        GH_TOKEN: ${{ github.token }}
