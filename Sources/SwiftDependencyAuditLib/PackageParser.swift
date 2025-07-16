@@ -35,7 +35,7 @@ public actor PackageParser {
     
     // MARK: - Package.swift Specific Components
     
-    // Target type patterns using RegexBuilder
+    // Target type patterns using RegexBuilder with multiline support
     private var targetTypePattern: Regex<(Substring, Substring)> {
         Regex {
             "."
@@ -50,58 +50,36 @@ public actor PackageParser {
                     "target"
                 }
             }
-            whitespace
+            ZeroOrMore(.whitespace)
             "("
         }
+        .dotMatchesNewlines()
     }
     
-    // Quoted identifier (name: "TargetName")
+    // Quoted identifier (name: "TargetName") with multiline support
     private var nameParameter: Regex<(Substring, Substring, Substring)> {
         Regex {
-            whitespace
+            ZeroOrMore(.whitespace)
             "name"
-            whitespace
+            ZeroOrMore(.whitespace)
             ":"
-            whitespace
+            ZeroOrMore(.whitespace)
             Capture {
                 quotedStringContent
             }
         }
+        .dotMatchesNewlines()
     }
     
-    // Dependencies array pattern (simplified for now)
+    // Dependencies array pattern with proper nested bracket handling
     private var dependenciesParameter: Regex<(Substring, Substring)> {
-        Regex {
-            whitespace
-            "dependencies"
-            whitespace
-            ":"
-            whitespace
-            "["
-            Capture {
-                ZeroOrMore(.reluctant) {
-                    /[^\[\]]/
-                }
-            }
-            "]"
-        }
+        /dependencies\s*:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/.dotMatchesNewlines()
     }
     
-    // Section extraction pattern (e.g., "targets: [...]") - simplified for now
+    // Section extraction pattern with proper nested bracket handling
     private func sectionPattern(sectionName: String) -> Regex<(Substring, Substring)> {
-        Regex {
-            sectionName
-            whitespace
-            ":"
-            whitespace
-            "["
-            Capture {
-                ZeroOrMore(.reluctant) {
-                    /[^\[\]]/
-                }
-            }
-            "]"
-        }
+        // Use a more robust pattern that can handle deeply nested structures
+        try! Regex("\(sectionName)\\s*:\\s*\\[([\\s\\S]*?)\\](?=\\s*[,)])")
     }
     
     // Package declaration pattern
@@ -332,8 +310,6 @@ public actor PackageParser {
             targetsSection = extractSection(from: content, sectionName: "targets")
         }
         
-        
-        
         // Use the new step-by-step target parsing approach
         targets = parseTargetsFromSection(targetsSection, packageContent: packageContent)
         
@@ -390,12 +366,48 @@ public actor PackageParser {
             return extractTargetsSectionWithRegexBuilder(from: content)
         }
         
-        // For other sections, use RegexBuilder approach
-        guard let match = content.firstMatch(of: sectionPattern(sectionName: sectionName)) else {
+        // For other sections, use a more robust bracket counting approach
+        return extractSectionWithBracketCounting(from: content, sectionName: sectionName)
+    }
+    
+    // Robust section extraction using bracket counting
+    private func extractSectionWithBracketCounting(from content: String, sectionName: String) -> String {
+        // Find the section start pattern: sectionName: [
+        let sectionStartPattern = Regex {
+            sectionName
+            ZeroOrMore(.whitespace)
+            ":"
+            ZeroOrMore(.whitespace)
+            "["
+        }
+        .dotMatchesNewlines()
+        
+        guard let match = content.firstMatch(of: sectionStartPattern) else {
             return ""
         }
         
-        return String(match.1)
+        // Start counting brackets from after the opening bracket
+        var currentIndex = match.range.upperBound
+        var bracketDepth = 1
+        
+        while currentIndex < content.endIndex && bracketDepth > 0 {
+            let char = content[currentIndex]
+            if char == "[" {
+                bracketDepth += 1
+            } else if char == "]" {
+                bracketDepth -= 1
+            }
+            
+            if bracketDepth == 0 {
+                // Found the matching closing bracket
+                let sectionContent = content[match.range.upperBound..<currentIndex]
+                return String(sectionContent)
+            }
+            
+            currentIndex = content.index(after: currentIndex)
+        }
+        
+        return ""
     }
     
     // RegexBuilder-based targets section extraction
@@ -405,14 +417,21 @@ public actor PackageParser {
             return ""
         }
         
+        // Search for targets section starting from after Package(
         let searchContent = content[packageMatch.range.upperBound...]
         
-        // Look for targets: [balanced brackets] within the Package declaration using RegexBuilder
-        let targetsPattern = sectionPattern(sectionName: "targets")
+        // Find ALL occurrences of "targets:" and take the last one (main targets section)
+        let targetsStartPattern = Regex {
+            "targets"
+            ZeroOrMore(.whitespace)
+            ":"
+            ZeroOrMore(.whitespace)
+            "["
+        }
+        .dotMatchesNewlines()
         
-        // Find the last occurrence of targets: in the Package declaration
-        var lastMatch: Regex<(Substring, Substring)>.Match?
-        for match in searchContent.matches(of: targetsPattern) {
+        var lastMatch: Regex<Substring>.Match?
+        for match in searchContent.matches(of: targetsStartPattern) {
             lastMatch = match
         }
         
@@ -420,7 +439,29 @@ public actor PackageParser {
             return ""
         }
         
-        return String(match.1)
+        // Extract content from the last targets section using bracket counting
+        let startIndex = match.range.upperBound
+        var currentIndex = startIndex
+        var bracketDepth = 1
+        
+        while currentIndex < searchContent.endIndex && bracketDepth > 0 {
+            let char = searchContent[currentIndex]
+            if char == "[" {
+                bracketDepth += 1
+            } else if char == "]" {
+                bracketDepth -= 1
+            }
+            
+            if bracketDepth == 0 {
+                // Found the matching closing bracket
+                let sectionContent = searchContent[startIndex..<currentIndex]
+                return String(sectionContent)
+            }
+            
+            currentIndex = searchContent.index(after: currentIndex)
+        }
+        
+        return ""
     }
     
     // RegexBuilder-based variable targets section extraction
@@ -443,9 +484,7 @@ public actor PackageParser {
             whitespace
             "["
             Capture {
-                ZeroOrMore(.reluctant) {
-                    /[^\[\]]/
-                }
+                /[^\]]*(?:\[[^\]]*\][^\]]*)*/
             }
             "]"
         }
