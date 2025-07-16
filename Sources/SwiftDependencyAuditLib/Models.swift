@@ -1,15 +1,35 @@
 import Foundation
 
+public struct DependencyInfo: Sendable {
+    public let name: String
+    public let lineNumber: Int?
+    
+    public init(name: String, lineNumber: Int? = nil) {
+        self.name = name
+        self.lineNumber = lineNumber
+    }
+}
+
 public struct Target: Sendable {
     public let name: String
     public let type: TargetType
     public let dependencies: [String]
+    public let dependencyInfo: [DependencyInfo]
     public let path: String?
     
     public init(name: String, type: TargetType, dependencies: [String], path: String?) {
         self.name = name
         self.type = type
         self.dependencies = dependencies
+        self.dependencyInfo = dependencies.map { DependencyInfo(name: $0) }
+        self.path = path
+    }
+    
+    public init(name: String, type: TargetType, dependencyInfo: [DependencyInfo], path: String?) {
+        self.name = name
+        self.type = type
+        self.dependencies = dependencyInfo.map { $0.name }
+        self.dependencyInfo = dependencyInfo
         self.path = path
     }
     

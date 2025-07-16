@@ -33,7 +33,7 @@ public actor PackageParser {
         let dependencies = try extractDependencies(from: content)
         
         // Extract targets
-        let targets = try extractTargets(from: content)
+        let targets = try extractTargets(from: content, packageContent: content)
         
         return PackageInfo(
             name: packageName,
@@ -89,7 +89,7 @@ public actor PackageParser {
         return dependencies
     }
     
-    private func extractTargets(from content: String) throws -> [Target] {
+    private func extractTargets(from content: String, packageContent: String) throws -> [Target] {
         var targets: [Target] = []
         
         // Try to extract targets from both patterns:
@@ -117,12 +117,12 @@ public actor PackageParser {
         for match in targetsSection.matches(of: executableRegex) {
             let name = String(match.1)
             let dependenciesStr = String(match.2)
-            let dependencies = parseDependencyList(dependenciesStr)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
             
             targets.append(Target(
                 name: name,
                 type: .executable,
-                dependencies: dependencies,
+                dependencyInfo: dependencyInfo,
                 path: nil
             ))
         }
@@ -131,12 +131,12 @@ public actor PackageParser {
         for match in targetsSection.matches(of: libraryRegex) {
             let name = String(match.1)
             let dependenciesStr = String(match.2)
-            let dependencies = parseDependencyList(dependenciesStr)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
             
             targets.append(Target(
                 name: name,
                 type: .library,
-                dependencies: dependencies,
+                dependencyInfo: dependencyInfo,
                 path: nil
             ))
         }
@@ -145,12 +145,12 @@ public actor PackageParser {
         for match in targetsSection.matches(of: testRegex) {
             let name = String(match.1)
             let dependenciesStr = String(match.2)
-            let dependencies = parseDependencyList(dependenciesStr)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
             
             targets.append(Target(
                 name: name,
                 type: .test,
-                dependencies: dependencies,
+                dependencyInfo: dependencyInfo,
                 path: nil
             ))
         }
@@ -159,12 +159,12 @@ public actor PackageParser {
         for match in targetsSection.matches(of: macroRegex) {
             let name = String(match.1)
             let dependenciesStr = String(match.2)
-            let dependencies = parseDependencyList(dependenciesStr)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
             
             targets.append(Target(
                 name: name,
                 type: .library, // Treat macros as library targets for dependency analysis
-                dependencies: dependencies,
+                dependencyInfo: dependencyInfo,
                 path: nil
             ))
         }
@@ -197,12 +197,12 @@ public actor PackageParser {
         for match in targetsSection.matches(of: pluginRegex) {
             let name = String(match.1)
             let dependenciesStr = String(match.2)
-            let dependencies = parseDependencyList(dependenciesStr)
+            let dependencyInfo = parseDependencyListWithLineNumbers(dependenciesStr, targetName: name, packageContent: packageContent)
             
             targets.append(Target(
                 name: name,
                 type: .plugin,
-                dependencies: dependencies,
+                dependencyInfo: dependencyInfo,
                 path: nil
             ))
         }
@@ -381,6 +381,130 @@ public actor PackageParser {
         }
         
         return dependencies
+    }
+    
+    private func parseDependencyListWithLineNumbers(_ dependenciesStr: String, targetName: String, packageContent: String) -> [DependencyInfo] {
+        var dependencyInfos: [DependencyInfo] = []
+        
+        // Get the line numbers for dependencies by searching in the full package content
+        let dependencies = parseDependencyList(dependenciesStr)
+        
+        for dependency in dependencies {
+            if let lineNumber = findDependencyLineNumber(dependency: dependency, targetName: targetName, in: packageContent) {
+                dependencyInfos.append(DependencyInfo(name: dependency, lineNumber: lineNumber))
+            } else {
+                dependencyInfos.append(DependencyInfo(name: dependency, lineNumber: nil))
+            }
+        }
+        
+        return dependencyInfos
+    }
+    
+    private func findDependencyLineNumber(dependency: String, targetName: String, in content: String) -> Int? {
+        let lines = content.components(separatedBy: .newlines)
+        
+        // Find the target declaration first - handle multi-line declarations
+        var targetStartLine: Int?
+        var targetEndLine: Int?
+        var braceDepth = 0
+        var inTarget = false
+        var lookingForTargetName = false
+        var targetTypeIndex: Int?
+        
+        for (index, line) in lines.enumerated() {
+            // Check if we find a target type declaration
+            if line.contains(".target(") || line.contains(".executableTarget(") || line.contains(".testTarget(") || line.contains(".macro(") || line.contains(".plugin(") {
+                targetTypeIndex = index
+                lookingForTargetName = true
+                braceDepth = 0
+                // Count opening parentheses on this line
+                for char in line {
+                    if char == "(" {
+                        braceDepth += 1
+                    } else if char == ")" {
+                        braceDepth -= 1
+                    }
+                }
+            }
+            
+            // If we're looking for a target name and found it, check if it matches
+            if lookingForTargetName && line.contains("name: \"\(targetName)\"") {
+                // Found the target we're looking for
+                targetStartLine = (targetTypeIndex ?? index) + 1
+                inTarget = true
+                lookingForTargetName = false
+                
+                // Continue counting braces from the target name line
+                for char in line {
+                    if char == "(" {
+                        braceDepth += 1
+                    } else if char == ")" {
+                        braceDepth -= 1
+                        if braceDepth == 0 {
+                            targetEndLine = index + 1
+                            break
+                        }
+                    }
+                }
+                
+                if targetEndLine != nil {
+                    break
+                }
+            }
+            
+            // If we're in a target, continue counting braces
+            if inTarget {
+                for char in line {
+                    if char == "(" {
+                        braceDepth += 1
+                    } else if char == ")" {
+                        braceDepth -= 1
+                        if braceDepth == 0 {
+                            targetEndLine = index + 1
+                            break
+                        }
+                    }
+                }
+                
+                if targetEndLine != nil {
+                    break
+                }
+            }
+            
+            // Reset if we found a target type but then encounter another target type before finding the name
+            if lookingForTargetName && !inTarget && (line.contains(".target(") || line.contains(".executableTarget(") || line.contains(".testTarget(") || line.contains(".macro(") || line.contains(".plugin(")) {
+                targetTypeIndex = index
+                braceDepth = 0
+                for char in line {
+                    if char == "(" {
+                        braceDepth += 1
+                    } else if char == ")" {
+                        braceDepth -= 1
+                    }
+                }
+            }
+        }
+        
+        // Search for the dependency within the target declaration
+        if let startLine = targetStartLine, let endLine = targetEndLine {
+            for lineIndex in (startLine - 1)..<min(endLine, lines.count) {
+                let line = lines[lineIndex]
+                // Look for the dependency name in quotes or as a product name
+                if line.contains("\"\(dependency)\"") {
+                    // Check if this is a simple quoted dependency or a product name
+                    // Both cases: "DependencyName" or .product(name: "DependencyName", ...)
+                    return lineIndex + 1
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func findLineNumber(for range: Range<String.Index>, in content: String) -> Int? {
+        let prefix = content[..<range.lowerBound]
+        let lineNumber = prefix.components(separatedBy: .newlines).count
+        return lineNumber
     }
     
     private func repoNameToModuleName(_ repoName: String) -> String {

@@ -34,9 +34,10 @@ public struct GitHubActionsOutput {
         )
     }
     
-    public static func unusedDependencyWarning(dependency: String, packageFile: String) -> String {
+    public static func unusedDependencyWarning(dependency: String, packageFile: String, line: Int? = nil) -> String {
         return warning(
             file: packageFile,
+            line: line,
             message: "Unused dependency '\(dependency)' is declared but never imported"
         )
     }

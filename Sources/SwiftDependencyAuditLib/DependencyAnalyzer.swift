@@ -231,9 +231,11 @@ public actor DependencyAnalyzer {
             // Generate warnings for unused dependencies
             for unusedDep in result.unusedDependencies.sorted() {
                 let packageFile = URL(fileURLWithPath: packagePath).appendingPathComponent("Package.swift").path
+                let lineNumber = result.target.dependencyInfo.first { $0.name == unusedDep }?.lineNumber
                 let message = XcodeOutput.unusedDependencyWarning(
                     dependency: unusedDep,
-                    packageFile: packageFile
+                    packageFile: packageFile,
+                    line: lineNumber
                 )
                 output.append(message)
             }
@@ -266,9 +268,11 @@ public actor DependencyAnalyzer {
             // Generate warnings for unused dependencies
             for unusedDep in result.unusedDependencies.sorted() {
                 let packageFile = URL(fileURLWithPath: packagePath).appendingPathComponent("Package.swift").path
+                let lineNumber = result.target.dependencyInfo.first { $0.name == unusedDep }?.lineNumber
                 let message = GitHubActionsOutput.unusedDependencyWarning(
                     dependency: unusedDep,
-                    packageFile: packageFile
+                    packageFile: packageFile,
+                    line: lineNumber
                 )
                 output.append(message)
             }
