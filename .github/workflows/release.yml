@@ -43,13 +43,15 @@ jobs:
 
       - name: Build for macOS (arm64)
         run: |
-          swift build --configuration release --arch arm64
+          swift build --configuration release --arch arm64 -Xswiftc -Osize
+          strip -rSTx .build/arm64-apple-macosx/release/swift-dependency-audit
           mkdir -p build/arm64
           cp .build/arm64-apple-macosx/release/swift-dependency-audit build/arm64/
 
       - name: Build for macOS (x86_64)
         run: |
-          swift build --configuration release --arch x86_64
+          swift build --configuration release --arch x86_64 -Xswiftc -Osize
+          strip -rSTx .build/x86_64-apple-macosx/release/swift-dependency-audit
           mkdir -p build/x86_64
           cp .build/x86_64-apple-macosx/release/swift-dependency-audit build/x86_64/
 
