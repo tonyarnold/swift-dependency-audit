@@ -102,11 +102,13 @@ public actor PackageParser {
             targetsSection = extractSection(from: content, sectionName: "targets")
         }
         
+        
         // Match different target types with more specific patterns to avoid cross-target matching
         // Match only within the same target declaration by being more restrictive
         let executableRegex = /\.executableTarget\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         let libraryRegex = /\.target\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         let testRegex = /\.testTarget\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
+        let macroRegex = /\.macro\s*\(\s*name:\s*"([^"]+)"[^.]*?dependencies:\s*\[([^\]]*(?:\[[^\]]*\][^\]]*)*)\]/
         
         // Parse executable targets
         for match in targetsSection.matches(of: executableRegex) {
@@ -150,9 +152,23 @@ public actor PackageParser {
             ))
         }
         
+        // Parse macro targets
+        for match in targetsSection.matches(of: macroRegex) {
+            let name = String(match.1)
+            let dependenciesStr = String(match.2)
+            let dependencies = parseDependencyList(dependenciesStr)
+            
+            targets.append(Target(
+                name: name,
+                type: .library, // Treat macros as library targets for dependency analysis
+                dependencies: dependencies,
+                path: nil
+            ))
+        }
+        
         // Parse targets without dependencies by looking for all target declarations
         // and seeing which ones don't have dependency arrays
-        let allTargetRegex = /\.(target|executableTarget|testTarget)\s*\(\s*name:\s*"([^"]+)"([^)]*)\)/
+        let allTargetRegex = /\.(target|executableTarget|testTarget|macro)\s*\(\s*name:\s*"([^"]+)"([^)]*)\)/
         var targetNamesWithDeps = Set<String>()
         for target in targets {
             targetNamesWithDeps.insert(target.name)
@@ -176,6 +192,8 @@ public actor PackageParser {
                     targetType = .executable
                 case "testTarget":
                     targetType = .test
+                case "macro":
+                    targetType = .library // Treat macros as library targets for dependency analysis
                 default: // "target"
                     targetType = .library
                 }
@@ -193,7 +211,55 @@ public actor PackageParser {
     }
     
     private func extractSection(from content: String, sectionName: String) -> String {
-        // Find the section start
+        // For targets section, we need to find the Package(..., targets: [...], ...) pattern
+        // not the products section that might also contain targets: [...]
+        if sectionName == "targets" {
+            // Find the Package( declaration first
+            guard let packageStart = content.range(of: "Package(") else {
+                return ""
+            }
+            
+            // Search for targets: [ after the Package( declaration
+            let searchRange = packageStart.upperBound..<content.endIndex
+            let searchContent = content[searchRange]
+            
+            // Find all occurrences of "targets: [" in the Package declaration
+            var lastTargetsRange: Range<String.Index>?
+            var searchIndex = searchContent.startIndex
+            
+            while let range = searchContent.range(of: "targets: [", range: searchIndex..<searchContent.endIndex) {
+                lastTargetsRange = range
+                searchIndex = range.upperBound
+            }
+            
+            guard let targetsRange = lastTargetsRange else {
+                return ""
+            }
+            
+            // Extract the targets array content
+            let startIndex = targetsRange.upperBound
+            var depth = 1
+            var currentIndex = startIndex
+            
+            // Find the matching closing bracket
+            while currentIndex < searchContent.endIndex && depth > 0 {
+                let char = searchContent[currentIndex]
+                if char == "[" {
+                    depth += 1
+                } else if char == "]" {
+                    depth -= 1
+                }
+                currentIndex = searchContent.index(after: currentIndex)
+            }
+            
+            guard depth == 0 else {
+                return ""
+            }
+            
+            return String(searchContent[startIndex..<searchContent.index(before: currentIndex)])
+        }
+        
+        // For other sections, use the original logic
         guard let sectionStart = content.range(of: "\(sectionName): [") else {
             return ""
         }
