@@ -58,33 +58,59 @@ jobs:
           # Create build directory
           mkdir -p .build/${{ matrix.arch }}-unknown-linux-gnu/release
           
-          # Build for the specific architecture using Swift 6.1
-          docker run --rm \
-            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
-            -v $PWD:/workspace \
-            -w /workspace \
-            swift:6.1 \
-            bash -c "
-              echo 'Building Swift Dependency Audit for ${{ matrix.arch }}...' && \
-              swift --version && \
-              echo 'Resolving dependencies...' && \
-              swift package resolve && \
-              echo 'Building release binary...' && \
-              swift build -c release --triple ${{ matrix.arch }}-unknown-linux-gnu -Xswiftc -Osize && \
-              echo 'Build completed successfully for ${{ matrix.arch }}'
-            "
-
-      - name: Strip binary for size optimization
-        run: |
-          if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            # Install cross-compilation tools for ARM64
-            sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-            aarch64-linux-gnu-strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            # Native x86_64 build
+            echo "Building natively for x86_64..."
+            docker run --rm \
+              --platform linux/amd64 \
+              -v $PWD:/workspace \
+              -w /workspace \
+              --user "$(id -u):$(id -g)" \
+              swift:6.1 \
+              bash -c "
+                echo 'Building Swift Dependency Audit for x86_64...' && \
+                swift --version && \
+                echo 'Resolving dependencies...' && \
+                swift package resolve && \
+                echo 'Building release binary...' && \
+                swift build -c release --triple x86_64-unknown-linux-gnu -Xswiftc -Osize && \
+                echo 'Stripping binary for size optimization...' && \
+                strip .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit && \
+                echo 'Build completed successfully for x86_64'
+              "
           else
-            strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+            # Cross-compilation for ARM64 using Swift cross-compilation
+            echo "Cross-compiling for aarch64..."
+            docker run --rm \
+              --platform linux/amd64 \
+              -v $PWD:/workspace \
+              -w /workspace \
+              swift:6.1 \
+              bash -c "
+                echo 'Cross-compiling Swift Dependency Audit for aarch64...' && \
+                swift --version && \
+                echo 'Installing cross-compilation tools...' && \
+                apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
+                echo 'Resolving dependencies...' && \
+                swift package resolve && \
+                echo 'Building release binary with cross-compilation...' && \
+                swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu && \
+                echo 'Stripping binary with cross-compilation tools...' && \
+                aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit && \
+                echo 'Fixing file permissions...' && \
+                chown -R $(id -u):$(id -g) .build/ || true && \
+                echo 'Build completed successfully for aarch64'
+              "
           fi
 
-      - name: Verify binary functionality
+      - name: Verify binary was created and get info
+        run: |
+          echo "Binary information for ${{ matrix.arch }}:"
+          ls -la .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          file .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          du -h .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+
+      - name: Test binary functionality (x86_64 only)
         if: matrix.arch == 'x86_64'
         run: |
           # Only test x86_64 binaries since we're running on x86_64
@@ -92,12 +118,6 @@ jobs:
           .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --version
           .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --help
 
-      - name: Display binary info
-        run: |
-          echo "Binary information for ${{ matrix.arch }}:"
-          ls -la .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
-          file .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
-          du -h .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
 
       - name: Upload Linux binary artifacts
         if: inputs.upload_artifacts
