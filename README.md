@@ -20,7 +20,7 @@ A Swift CLI tool that analyzes Swift Package.swift files, scans target source di
 Clone the repository and build:
 
 ```bash
-git clone https://github.com/yourusername/SwiftDependencyAudit.git
+git clone https://github.com/tonyarnold/swift-dependency-audit.git
 cd SwiftDependencyAudit
 swift build -c release
 ```
