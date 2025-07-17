@@ -65,7 +65,7 @@ jobs:
               --platform linux/amd64 \
               -v $PWD:/workspace \
               -w /workspace \
-              --user "$(id -u):$(id -g)" \
+              -e HOME=/tmp \
               swift:6.1 \
               bash -c "
                 echo 'Building Swift Dependency Audit for x86_64...' && \
@@ -76,6 +76,8 @@ jobs:
                 swift build -c release --triple x86_64-unknown-linux-gnu -Xswiftc -Osize && \
                 echo 'Stripping binary for size optimization...' && \
                 strip .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit && \
+                echo 'Fixing file permissions...' && \
+                chown -R $(stat -c '%u:%g' /workspace) /workspace/.build/ && \
                 echo 'Build completed successfully for x86_64'
               "
           else
@@ -85,6 +87,7 @@ jobs:
               --platform linux/amd64 \
               -v $PWD:/workspace \
               -w /workspace \
+              -e HOME=/tmp \
               swift:6.1 \
               bash -c "
                 echo 'Cross-compiling Swift Dependency Audit for aarch64...' && \
@@ -98,7 +101,7 @@ jobs:
                 echo 'Stripping binary with cross-compilation tools...' && \
                 aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit && \
                 echo 'Fixing file permissions...' && \
-                chown -R $(id -u):$(id -g) .build/ || true && \
+                chown -R $(stat -c '%u:%g' /workspace) /workspace/.build/ && \
                 echo 'Build completed successfully for aarch64'
               "
           fi

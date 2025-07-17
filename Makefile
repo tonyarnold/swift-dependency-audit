@@ -62,9 +62,13 @@ build_linux_x86_64:
 		--platform linux/amd64 \
 		-v $(PWD):/workspace \
 		-w /workspace \
+		-e HOME=/tmp \
 		swift:6.1 \
-		bash -c "swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu"
-	strip $(LINUX_X86_64_BUILD_DIR)/$(EXECUTABLE_NAME)
+		bash -c " \
+			swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu && \
+			strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) && \
+			chown -R $$(stat -c '%u:%g' /workspace) /workspace/.build/ \
+		"
 	@echo "✅ Linux x86_64 binary built at $(LINUX_X86_64_BUILD_DIR)/$(EXECUTABLE_NAME)"
 
 .PHONY: build_linux_aarch64
@@ -75,17 +79,16 @@ build_linux_aarch64:
 		--platform linux/amd64 \
 		-v $(PWD):/workspace \
 		-w /workspace \
+		-e HOME=/tmp \
 		swift:6.1 \
 		bash -c " \
 			echo 'Installing cross-compilation tools...' && \
 			apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
 			echo 'Cross-compiling for ARM64...' && \
-			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu \
+			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu && \
+			aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) && \
+			chown -R $$(stat -c '%u:%g' /workspace) /workspace/.build/ \
 		"
-	# Use cross-compilation tools for ARM64 stripping
-	which aarch64-linux-gnu-strip > /dev/null 2>&1 && \
-		aarch64-linux-gnu-strip $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME) || \
-		echo "⚠️  aarch64-linux-gnu-strip not available, skipping strip"
 	@echo "✅ Linux ARM64 binary built at $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME)"
 
 # Build all platform binaries
