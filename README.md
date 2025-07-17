@@ -96,7 +96,7 @@ SwiftDependencyAudit includes a Swift Package Manager build tool plugin that aut
 
 ### Plugin Integration
 
-The build tool plugin uses pre-compiled binary targets for optimal performance across multiple platforms:
+The build tool plugin uses a hybrid approach for optimal performance and compatibility:
 
 ```swift
 // Package.swift
@@ -124,17 +124,28 @@ let package = Package(
 )
 ```
 
-**Note**: Build tool plugins require binary targets and cannot use source compilation. The plugin automatically uses the appropriate pre-compiled binary for your platform.
+### Hybrid Binary/Source Approach
+
+Following the proven pattern from SwiftLint, SwiftDependencyAudit uses:
+
+- **macOS**: Pre-compiled binary targets for optimal performance
+- **Other Platforms**: Source compilation for maximum compatibility
+
+This approach provides:
+
+- **Performance**: Binary targets eliminate compilation time on macOS
+- **Compatibility**: Source compilation works on all Swift-supported platforms
+- **Development**: Easy debugging and contribution with source access
+- **Production**: Optimized performance where it matters most
 
 ### Binary Target Distribution
 
-SwiftDependencyAudit provides pre-compiled binary targets for multiple platforms:
+SwiftDependencyAudit provides pre-compiled binary targets for:
 
 - **macOS**: Universal binary supporting both ARM64 (Apple Silicon) and x86_64 (Intel)
-- **Linux**: x86_64 and ARM64 architectures
 - **Cross-platform**: Artifact bundles compatible with Swift Package Manager
 
-Binary targets provide significant performance improvements over source compilation, especially in CI/CD environments and large projects.
+Binary targets provide significant performance improvements over source compilation, especially in CI/CD environments and large projects, while maintaining full compatibility across all platforms.
 
 ### Plugin Features
 

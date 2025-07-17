@@ -1,0 +1,108 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout"
+        required: false
+        default: ${{ github.ref }}
+        type: string
+      upload_artifacts:
+        description: "Whether to upload artifacts"
+        required: false
+        default: false
+        type: boolean
+      artifact_retention_days:
+        description: "How long to retain artifacts"
+        required: false
+        default: 7
+        type: number
+    outputs:
+      artifact_name_x86_64:
+        description: "Name of the x86_64 Linux artifact"
+        value: ${{ jobs.build-linux.outputs.artifact_name_x86_64 }}
+      artifact_name_aarch64:
+        description: "Name of the aarch64 Linux artifact"
+        value: ${{ jobs.build-linux.outputs.artifact_name_aarch64 }}
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    outputs:
+      artifact_name_x86_64: linux-x86_64-binary
+      artifact_name_aarch64: linux-aarch64-binary
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.arch }}-
+
+      - name: Build Linux binary for ${{ matrix.arch }}
+        run: |
+          # Create build directory
+          mkdir -p .build/${{ matrix.arch }}-unknown-linux-gnu/release
+          
+          # Build for the specific architecture using Swift 6.1
+          docker run --rm \
+            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
+            -v $PWD:/workspace \
+            -w /workspace \
+            swift:6.1 \
+            bash -c "
+              echo 'Building Swift Dependency Audit for ${{ matrix.arch }}...' && \
+              swift --version && \
+              echo 'Resolving dependencies...' && \
+              swift package resolve && \
+              echo 'Building release binary...' && \
+              swift build -c release --triple ${{ matrix.arch }}-unknown-linux-gnu -Xswiftc -Osize && \
+              echo 'Build completed successfully for ${{ matrix.arch }}'
+            "
+
+      - name: Strip binary for size optimization
+        run: |
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            # Install cross-compilation tools for ARM64
+            sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            aarch64-linux-gnu-strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          else
+            strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          fi
+
+      - name: Verify binary functionality
+        if: matrix.arch == 'x86_64'
+        run: |
+          # Only test x86_64 binaries since we're running on x86_64
+          echo "Testing binary functionality..."
+          .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --version
+          .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --help
+
+      - name: Display binary info
+        run: |
+          echo "Binary information for ${{ matrix.arch }}:"
+          ls -la .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          file .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          du -h .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+
+      - name: Upload Linux binary artifacts
+        if: inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-binary
+          path: .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+          retention-days: ${{ inputs.artifact_retention_days }}

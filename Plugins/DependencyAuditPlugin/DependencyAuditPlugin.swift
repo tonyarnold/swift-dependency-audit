@@ -12,7 +12,6 @@ struct DependencyAuditPlugin: BuildToolPlugin {
             return []
         }
         
-        // Get the binary tool from the artifact bundle
         let tool = try context.tool(named: "swift-dependency-audit")
         
         // Create output directory for plugin results

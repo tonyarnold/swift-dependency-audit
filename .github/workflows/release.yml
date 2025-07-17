@@ -12,7 +12,8 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    name: Build macOS Universal Binary
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,64 +38,65 @@ jobs:
       - name: Resolve dependencies
         run: swift package resolve
           
-      - name: Build universal binary
+      - name: Build universal binary with validation
         run: |
+          echo "Building universal macOS binary..."
           swift build -c release --arch arm64 --arch x86_64 -Xswiftc -Osize
           
-      - name: Strip and prepare binary
+          # Verify the binary was created
+          if [ ! -f ".build/apple/Products/Release/swift-dependency-audit" ]; then
+            echo "❌ Binary not found after build"
+            exit 1
+          fi
+          
+          echo "✅ Binary built successfully"
+          
+      - name: Strip and optimize binary
         run: |
+          echo "Stripping debug symbols for size optimization..."
           strip -rSTx .build/apple/Products/Release/swift-dependency-audit
           
-      - name: Test binary functionality
+          # Display binary information
+          echo "Binary information:"
+          ls -la .build/apple/Products/Release/swift-dependency-audit
+          file .build/apple/Products/Release/swift-dependency-audit
+          du -h .build/apple/Products/Release/swift-dependency-audit
+          
+      - name: Comprehensive binary validation
         run: |
+          echo "=== Validating macOS binary functionality ==="
+          
+          # Test basic commands
+          .build/apple/Products/Release/swift-dependency-audit --version
           .build/apple/Products/Release/swift-dependency-audit --help
+          
+          echo "=== Testing self-analysis ==="
           .build/apple/Products/Release/swift-dependency-audit . --verbose --exclude-tests
+          
+          echo "=== Testing JSON output ==="
+          .build/apple/Products/Release/swift-dependency-audit . --json --no-color > test-output.json
+          cat test-output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
+          echo "✅ JSON output validation passed"
+          
+          echo "=== Testing different output formats ==="
+          .build/apple/Products/Release/swift-dependency-audit . --output-format xcode --quiet
+          .build/apple/Products/Release/swift-dependency-audit . --output-format github-actions --quiet
+          
+          echo "✅ All macOS binary validations passed"
           
       - name: Upload macOS binary
         uses: actions/upload-artifact@v4
         with:
           name: swift-dependency-audit-macos
           path: .build/apple/Products/Release/swift-dependency-audit
+          retention-days: 30
           
   build-linux:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [x86_64, aarch64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Build Linux binary
-        run: |
-          # Create build directory
-          mkdir -p .build/${{ matrix.arch }}-unknown-linux-gnu/release
-          
-          # Build for the specific architecture
-          docker run --rm \
-            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
-            -v $PWD:/workspace \
-            -w /workspace \
-            swift:6.1 \
-            bash -c "swift build -c release --triple ${{ matrix.arch }}-unknown-linux-gnu -Xswiftc -Osize"
-            
-      - name: Strip binary
-        run: |
-          if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-            aarch64-linux-gnu-strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
-          else
-            strip .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
-          fi
-          
-      - name: Upload Linux binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: swift-dependency-audit-linux-${{ matrix.arch }}
-          path: .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+    name: Build Linux Binaries
+    uses: ./.github/workflows/docker.yml
+    with:
+      upload_artifacts: true
+      artifact_retention_days: 30
           
   create-release:
     runs-on: ubuntu-latest
@@ -117,8 +119,8 @@ jobs:
           
           # Copy binaries to expected locations
           cp swift-dependency-audit-macos/swift-dependency-audit .build/apple/Products/Release/
-          cp swift-dependency-audit-linux-x86_64/swift-dependency-audit .build/x86_64-unknown-linux-gnu/release/
-          cp swift-dependency-audit-linux-aarch64/swift-dependency-audit .build/aarch64-unknown-linux-gnu/release/
+          cp linux-x86_64-binary/swift-dependency-audit .build/x86_64-unknown-linux-gnu/release/
+          cp linux-aarch64-binary/swift-dependency-audit .build/aarch64-unknown-linux-gnu/release/
           
           # Make binaries executable
           chmod +x .build/apple/Products/Release/swift-dependency-audit
@@ -128,7 +130,7 @@ jobs:
       - name: Install 7zip
         run: sudo apt-get update && sudo apt-get install -y p7zip-full
         
-      - name: Create artifact bundle
+      - name: Create artifact bundle using Makefile
         run: |
           # Get version from git tag or manual input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -137,21 +139,19 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
           fi
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          echo "Creating artifact bundle for version $VERSION"
+          echo "Creating artifact bundle for version $VERSION using Makefile"
           
-          # Make script executable and run
-          chmod +x Scripts/spm-artifact-bundle.sh
-          ./Scripts/spm-artifact-bundle.sh "$VERSION"
+          # Update VERSION file for Makefile
+          echo "$VERSION" > VERSION
+          
+          # Use Makefile to create artifact bundle (calls the scripts internally)
+          make spm_artifactbundle
+          
+          # Activate production Package.swift for releases
+          cp Package-production.swift Package.swift
           
           # Update Package.swift with actual checksum and version
-          CHECKSUM=$(cat swift-dependency-audit.artifactbundle.zip.checksum)
-          sed -i "s/PLACEHOLDER_CHECKSUM_WILL_BE_UPDATED_ON_RELEASE/$CHECKSUM/" Package.swift
-          sed -i "s/v1.0.0/v$VERSION/" Package.swift
-          
-          # Verify the changes
-          echo "Updated Package.swift with:"
-          echo "Version: v$VERSION"
-          echo "Checksum: $CHECKSUM"
+          make update_package
           
       - name: Create traditional release archives
         run: |
@@ -193,6 +193,81 @@ jobs:
           shasum -a 256 *.tar.gz > checksums.txt
           cat checksums.txt
           
+      - name: Generate release notes
+        run: |
+          # Get version from git tag or manual input
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag_name }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          
+          # Make script executable and generate release notes
+          chmod +x Scripts/generate-release-notes.sh
+          
+          # Try to extract specific version, fallback to unreleased
+          if ./Scripts/generate-release-notes.sh "$VERSION" > release_notes.md 2>/dev/null; then
+            echo "✅ Generated release notes from CHANGELOG.md for $VERSION"
+          elif ./Scripts/generate-release-notes.sh "unreleased" > release_notes.md 2>/dev/null; then
+            echo "⚠️  Specific version not found, using unreleased section"
+          else
+            echo "⚠️  Could not extract from CHANGELOG.md, using fallback"
+            cat > release_notes.md << 'EOF'
+          ## Release Notes
+          
+          This release includes improvements and bug fixes. See the full changelog for details.
+          EOF
+          fi
+          
+          # Add installation instructions to release notes
+          cat >> release_notes.md << 'EOF'
+          
+          ## Binary Target Usage (Swift Package Manager Plugin)
+          
+          Add this to your Package.swift for build tool plugin usage:
+          
+          ```swift
+          .binaryTarget(
+              name: "SwiftDependencyAuditBinary",
+              url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/${{ github.ref_name }}/swift-dependency-audit.artifactbundle.zip",
+              checksum: "$(cat swift-dependency-audit.artifactbundle.zip.checksum)"
+          )
+          ```
+          
+          ## Manual Installation
+          
+          Download the appropriate binary for your system:
+          
+          - **Universal macOS** (recommended): `swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz`
+          - **Linux x86_64**: `swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz`
+          - **Linux ARM64**: `swift-dependency-audit-${{ github.ref_name }}-linux-aarch64.tar.gz`
+          
+          ### Quick Install (macOS)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz | tar -xz
+          sudo mv swift-dependency-audit-${{ github.ref_name }}-macos-universal/swift-dependency-audit /usr/local/bin/
+          ```
+          
+          ### Quick Install (Linux)
+          ```bash
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz | tar -xz
+          sudo mv swift-dependency-audit-${{ github.ref_name }}-linux-x86_64/swift-dependency-audit /usr/local/bin/
+          ```
+          
+          ## Supported Platforms
+          
+          - macOS (Universal: ARM64 + x86_64)
+          - Linux x86_64
+          - Linux ARM64
+          
+          ## Plugin Usage
+          
+          The binary target can be used with the SwiftDependencyAudit build tool plugin for automatic dependency validation during builds.
+          
+          ## Checksums
+          All binaries are signed with SHA256 checksums available in `checksums.txt`.
+          EOF
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'push'
@@ -203,52 +278,7 @@ jobs:
             Package.swift
             release/*.tar.gz
             release/checksums.txt
-          generate_release_notes: true
-          body: |
-            ## Binary Target Usage (Swift Package Manager Plugin)
-            
-            Add this to your Package.swift for build tool plugin usage:
-            
-            ```swift
-            .binaryTarget(
-                name: "SwiftDependencyAuditBinary",
-                url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/${{ github.ref_name }}/swift-dependency-audit.artifactbundle.zip",
-                checksum: "$(cat swift-dependency-audit.artifactbundle.zip.checksum)"
-            )
-            ```
-            
-            ## Manual Installation
-            
-            Download the appropriate binary for your system:
-            
-            - **Universal macOS** (recommended): `swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz`
-            - **Linux x86_64**: `swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz`
-            - **Linux ARM64**: `swift-dependency-audit-${{ github.ref_name }}-linux-aarch64.tar.gz`
-            
-            ### Quick Install (macOS)
-            ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz | tar -xz
-            sudo mv swift-dependency-audit-${{ github.ref_name }}-macos-universal/swift-dependency-audit /usr/local/bin/
-            ```
-            
-            ### Quick Install (Linux)
-            ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz | tar -xz
-            sudo mv swift-dependency-audit-${{ github.ref_name }}-linux-x86_64/swift-dependency-audit /usr/local/bin/
-            ```
-            
-            ## Supported Platforms
-            
-            - macOS (Universal: ARM64 + x86_64)
-            - Linux x86_64
-            - Linux ARM64
-            
-            ## Plugin Usage
-            
-            The binary target can be used with the SwiftDependencyAudit build tool plugin for automatic dependency validation during builds.
-            
-            ## Checksums
-            All binaries are signed with SHA256 checksums available in `checksums.txt`.
+          body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Docker-based cross-compilation for Linux platforms
   - SHA256 checksum verification for binary integrity
   - Artifact bundle generation script for automated distribution
-  - Binary-only build tool plugin execution (required for Swift Package Manager plugins)
+  - Hybrid binary/source build tool plugin execution following SwiftLint's proven pattern
 
 - **Swift Build Tool Plugin Integration**
   - Automatic dependency validation during builds with Swift Package Manager build tool plugin
@@ -98,16 +98,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `Scripts/spm-artifact-bundle.sh` for automated artifact bundle generation
   - Created `Scripts/spm-artifact-bundle-info.template` for Swift Package Manager manifest generation
   - Implemented GitHub Actions workflow with matrix strategy for cross-platform builds
-  - Docker-based Linux compilation using `swift:5.10` image with platform-specific builds
+  - Docker-based Linux compilation using `swift:6.1` image with platform-specific builds
   - Binary optimization with `strip` for size reduction and `-Xswiftc -Osize` for performance
   - Artifact bundle structure following SPM schema version 1.0 with multi-platform variants
   - Automated checksum calculation with SHA256 for security verification
-  - Binary-only distribution model required for Swift Package Manager build tool plugins
+  - Hybrid distribution model with conditional binary targets for optimal platform support
+  - Dedicated `Scripts/update-artifact-bundle.sh` script for automated Package.swift checksum updates
+  - Conditional compilation patterns following Swift Package Manager best practices
 
 - **Swift Build Tool Plugin Architecture**
   - Added `DependencyAuditPlugin` conforming to `BuildToolPlugin` protocol with `@main` annotation
   - Implemented `createBuildCommands(context:target:)` method for prebuild command generation
-  - Binary-only execution using `context.tool(named:)` with artifact bundle dependencies
+  - Hybrid execution using `context.tool(named:)` with conditional platform dependencies
   - Uses modern PackagePlugin API with `pluginWorkDirectoryURL` and `directoryURL` properties
   - Target filtering with `SourceModuleTarget` type checking to reduce overhead
   - Proper test target detection using `sourceTarget.kind != .test` instead of string matching
