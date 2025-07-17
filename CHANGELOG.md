@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced JSON output to include detailed product/package attribution for redundant dependencies
   - Improved actionability of redundant dependency warnings with complete provenance information
 
+### Fixed
+- **Product vs Target Dependency Detection**
+  - Fixed false positive redundant dependency warnings for product dependencies with matching target names
+  - Product dependencies like `.product(name: "Apollo", package: "apollo-ios")` are no longer incorrectly flagged as redundant
+  - Enhanced dependency parsing to properly distinguish between product dependencies and target dependencies
+  - Corrected redundancy detection to only flag actual target dependencies that are covered by product dependencies
+  - Resolves issue where tools reported confusing messages like "Apollo (available through Apollo from Apollo)"
+
 - **Package.swift Parser Robustness**
   - Fixed parsing failures with complex Package.swift files using variable declarations
   - Enhanced bracket counting for nested array structures in variable assignments

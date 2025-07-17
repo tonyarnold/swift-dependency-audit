@@ -112,7 +112,10 @@ struct ProductDependencyTests {
         let target = Target(
             name: "TestTarget",
             type: .library,
-            dependencies: ["CoreUtilities", "SomeOtherDep"], // Product dependency
+            dependencyInfo: [
+                DependencyInfo(name: "CoreUtilities", type: .product(packageName: "UtilityLibrary")),
+                DependencyInfo(name: "SomeOtherDep", type: .target)
+            ],
             path: nil
         )
         
@@ -172,7 +175,10 @@ struct ProductDependencyTests {
         let target = Target(
             name: "TestTarget",
             type: .library,
-            dependencies: ["CoreUtilities", "StringUtils"], // Both product and direct target
+            dependencyInfo: [
+                DependencyInfo(name: "CoreUtilities", type: .product(packageName: "UtilityLibrary")),
+                DependencyInfo(name: "StringUtils", type: .target)
+            ],
             path: nil
         )
         
@@ -224,7 +230,10 @@ struct ProductDependencyTests {
         let target = Target(
             name: "TestTarget",
             type: .library,
-            dependencies: ["CoreUtilities", "IndependentLibrary"],
+            dependencyInfo: [
+                DependencyInfo(name: "CoreUtilities", type: .product(packageName: "UtilityLibrary")),
+                DependencyInfo(name: "IndependentLibrary", type: .target)
+            ],
             path: nil
         )
         
@@ -277,5 +286,68 @@ struct ProductDependencyTests {
         
         // No redundant dependencies in this case
         #expect(result.redundantDirectDependencies.isEmpty)
+    }
+    
+    @Test func testProductAndTargetWithSameNameNoFalsePositive() async throws {
+        // Test scenario from user report: product "Apollo" providing target "Apollo"
+        // This should NOT be flagged as redundant since there's no separate target dependency
+        let target = Target(
+            name: "TestTarget",
+            type: .library,
+            dependencyInfo: [
+                DependencyInfo(name: "Apollo", type: .product(packageName: "apollo-ios"))
+            ],
+            path: nil
+        )
+        
+        let packageInfo = PackageInfo(
+            name: "TestPackage",
+            targets: [target],
+            dependencies: [],
+            path: "/tmp/test"
+        )
+        
+        let externalPackages = [
+            ExternalPackage(
+                name: "apollo-ios",
+                products: [
+                    Product(name: "Apollo", type: .library, targets: ["Apollo"], packageName: "apollo-ios")
+                ],
+                path: "/tmp/apollo-ios"
+            )
+        ]
+        
+        let productToTargetMapping = ["Apollo": ["Apollo"]]
+        
+        let sourceFiles = [
+            SourceFile(path: "/tmp/test/file1.swift", imports: [
+                ImportInfo(moduleName: "Apollo", lineNumber: 1)
+            ])
+        ]
+        
+        let analyzer = DependencyAnalyzer()
+        let result = await analyzer.analyzeWithProductSupport(
+            target: target,
+            allImports: Set(["Apollo"]),
+            packageInfo: packageInfo,
+            externalPackages: externalPackages,
+            productToTargetMapping: productToTargetMapping,
+            sourceFiles: sourceFiles
+        )
+        
+        // Should NOT report redundant dependencies (this was the bug)
+        #expect(result.redundantDirectDependencies.isEmpty)
+        
+        // Apollo should be product-satisfied
+        #expect(result.productSatisfiedDependencies.count == 1)
+        #expect(result.productSatisfiedDependencies.first?.importName == "Apollo")
+        #expect(result.productSatisfiedDependencies.first?.productName == "Apollo")
+        #expect(result.productSatisfiedDependencies.first?.packageName == "apollo-ios")
+        
+        // No missing dependencies
+        #expect(result.missingDependencies.isEmpty)
+        
+        // Apollo should be in correct dependencies since it's a directly declared product dependency that's used
+        #expect(result.correctDependencies.contains("Apollo"))
     }
 }

@@ -767,14 +767,24 @@ public actor PackageParser {
     private func parseDependencyListWithLineNumbers(_ dependenciesStr: String, targetName: String, packageContent: String) -> [DependencyInfo] {
         var dependencyInfos: [DependencyInfo] = []
         
-        // Get the line numbers for dependencies by searching in the full package content
-        let dependencies = parseDependencyList(dependenciesStr)
+        // Parse product dependencies with their package information
+        let productRegex = /\.product\s*\(\s*name:\s*"([^"]+)".*?package:\s*"([^"]+)"/
+        for match in dependenciesStr.matches(of: productRegex) {
+            let productName = String(match.1)
+            let packageName = String(match.2)
+            let lineNumber = findDependencyLineNumber(dependency: productName, targetName: targetName, in: packageContent)
+            dependencyInfos.append(DependencyInfo(name: productName, type: .product(packageName: packageName), lineNumber: lineNumber))
+        }
         
-        for dependency in dependencies {
-            if let lineNumber = findDependencyLineNumber(dependency: dependency, targetName: targetName, in: packageContent) {
-                dependencyInfos.append(DependencyInfo(name: dependency, lineNumber: lineNumber))
-            } else {
-                dependencyInfos.append(DependencyInfo(name: dependency, lineNumber: nil))
+        // Parse simple quoted dependencies (not inside .product() calls)
+        let components = dependenciesStr.components(separatedBy: ",")
+        for component in components {
+            let trimmed = component.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Match simple quoted strings that aren't part of .product() calls
+            if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && !trimmed.contains(".product") {
+                let quoted = String(trimmed.dropFirst().dropLast())
+                let lineNumber = findDependencyLineNumber(dependency: quoted, targetName: targetName, in: packageContent)
+                dependencyInfos.append(DependencyInfo(name: quoted, type: .target, lineNumber: lineNumber))
             }
         }
         

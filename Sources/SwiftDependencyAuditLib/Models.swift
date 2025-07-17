@@ -2,11 +2,18 @@ import Foundation
 
 public struct DependencyInfo: Sendable {
     public let name: String
+    public let type: DependencyType
     public let lineNumber: Int?
     
-    public init(name: String, lineNumber: Int? = nil) {
+    public init(name: String, type: DependencyType = .target, lineNumber: Int? = nil) {
         self.name = name
+        self.type = type
         self.lineNumber = lineNumber
+    }
+    
+    public enum DependencyType: Sendable {
+        case product(packageName: String)
+        case target
     }
 }
 
@@ -21,7 +28,7 @@ public struct Target: Sendable {
         self.name = name
         self.type = type
         self.dependencies = dependencies
-        self.dependencyInfo = dependencies.map { DependencyInfo(name: $0) }
+        self.dependencyInfo = dependencies.map { DependencyInfo(name: $0, type: .target) }
         self.path = path
     }
     

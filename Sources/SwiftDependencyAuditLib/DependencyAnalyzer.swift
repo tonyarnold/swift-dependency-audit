@@ -80,8 +80,6 @@ public actor DependencyAnalyzer {
         sourceFiles: [SourceFile]
     ) -> AnalysisResult {
         
-        // Convert declared dependencies to a set for comparison
-        let declaredDependencies = Set(target.dependencies)
         let internalModules = getInternalModules(from: packageInfo, excluding: target)
         
         // Find which imports are satisfied by products
@@ -89,22 +87,37 @@ public actor DependencyAnalyzer {
         var productSatisfiedImports = Set<String>()
         var redundantDirectDependencies: [RedundantDirectDependency] = []
         
-        // Check for redundant direct dependencies - targets that are also covered by products
-        for declaredDep in declaredDependencies {
-            if let targets = productToTargetMapping[declaredDep] {
-                // Check if any of these targets are also directly declared
-                let redundantTargets = Set(targets).intersection(declaredDependencies)
+        // Check for redundant direct dependencies - target dependencies that are also covered by product dependencies
+        let productDependencies = Set(target.dependencyInfo.compactMap { dep in
+            if case .product = dep.type {
+                return dep.name
+            }
+            return nil
+        })
+        
+        let targetDependencies = Set(target.dependencyInfo.compactMap { dep in
+            if case .target = dep.type {
+                return dep.name
+            }
+            return nil
+        })
+        
+        // For each product dependency, check if we also have redundant target dependencies
+        for productDep in productDependencies {
+            if let targets = productToTargetMapping[productDep] {
+                // Check if any of these targets are also directly declared as target dependencies
+                let redundantTargets = Set(targets).intersection(targetDependencies)
                 
                 // Find the package that provides this product
                 if let package = externalPackages.first(where: { pkg in
-                    pkg.products.contains { $0.name == declaredDep }
+                    pkg.products.contains { $0.name == productDep }
                 }) {
                     // Create detailed redundant dependency entries
                     for redundantTarget in redundantTargets {
                         redundantDirectDependencies.append(
                             RedundantDirectDependency(
                                 targetName: redundantTarget,
-                                providingProduct: declaredDep,
+                                providingProduct: productDep,
                                 packageName: package.name
                             )
                         )
@@ -122,17 +135,17 @@ public actor DependencyAnalyzer {
                 continue
             }
             
-            // Check if this import is satisfied by any declared product
-            for declaredDep in declaredDependencies {
-                if let targets = productToTargetMapping[declaredDep], targets.contains(importName) {
+            // Check if this import is satisfied by any declared product dependency
+            for productDep in productDependencies {
+                if let targets = productToTargetMapping[productDep], targets.contains(importName) {
                     // Find the package that provides this product
                     if let package = externalPackages.first(where: { pkg in
-                        pkg.products.contains { $0.name == declaredDep }
+                        pkg.products.contains { $0.name == productDep }
                     }) {
                         productSatisfiedDependencies.append(
                             ProductSatisfiedDependency(
                                 importName: importName,
-                                productName: declaredDep,
+                                productName: productDep,
                                 packageName: package.name
                             )
                         )
@@ -147,15 +160,20 @@ public actor DependencyAnalyzer {
         let importsNotSatisfiedByProducts = allImports.subtracting(productSatisfiedImports)
         
         let missingDependencies = importsNotSatisfiedByProducts
-            .subtracting(declaredDependencies)
+            .subtracting(targetDependencies)
+            .subtracting(productDependencies)
             .subtracting(internalModules)
         
         // For unused dependencies, exclude redundant direct dependencies (those covered by products)
         let redundantTargetNames = Set(redundantDirectDependencies.map { $0.targetName })
-        let nonRedundantDeclaredDependencies = declaredDependencies.subtracting(redundantTargetNames)
-        let unusedDependencies = nonRedundantDeclaredDependencies.subtracting(allImports)
+        let nonRedundantTargetDependencies = targetDependencies.subtracting(redundantTargetNames)
+        let unusedTargetDependencies = nonRedundantTargetDependencies.subtracting(allImports)
+        let unusedProductDependencies = productDependencies.subtracting(allImports).subtracting(productSatisfiedImports)
+        let unusedDependencies = unusedTargetDependencies.union(unusedProductDependencies)
         
-        let correctDependencies = nonRedundantDeclaredDependencies.intersection(allImports)
+        // Correct dependencies include both target dependencies and product dependencies that are actually used
+        let usedProductDependencies = productDependencies.intersection(allImports)
+        let correctDependencies = nonRedundantTargetDependencies.intersection(allImports).union(usedProductDependencies)
         
         return AnalysisResult(
             target: target,
