@@ -64,23 +64,6 @@ jobs:
       - name: Run tests
         run: swift test --configuration debug --enable-code-coverage
 
-      - name: Generate code coverage report (macOS only)
-        if: matrix.platform == 'macOS'
-        run: |
-          xcrun llvm-cov export -format="lcov" \
-            .build/debug/SwiftDependencyAuditPackageTests.xctest/Contents/MacOS/SwiftDependencyAuditPackageTests \
-            -instr-profile=.build/debug/codecov/default.profdata > coverage.lcov
-        continue-on-error: true
-
-      - name: Upload coverage to Codecov (macOS only)
-        if: matrix.platform == 'macOS'
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage.lcov
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
       - name: Test CLI functionality
         run: |
           swift run swift-dependency-audit --help
@@ -172,21 +155,21 @@ jobs:
           echo "=== Testing CLI Help and Version ==="
           .build/release/swift-dependency-audit --help
           .build/release/swift-dependency-audit --version
-          
+
           echo "=== Testing Self-Analysis ==="
           .build/release/swift-dependency-audit . --verbose --exclude-tests
-          
+
           echo "=== Testing JSON Output ==="
           .build/release/swift-dependency-audit . --json --no-color > output.json
           cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
           echo "✅ JSON output is valid"
-          
+
           echo "=== Testing Xcode Output Format ==="
           .build/release/swift-dependency-audit . --output-format xcode --quiet
-          
+
           echo "=== Testing GitHub Actions Output Format ==="
           .build/release/swift-dependency-audit . --output-format github-actions --quiet
-          
+
           echo "=== Testing Custom Whitelist ==="
           .build/release/swift-dependency-audit . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose
 
