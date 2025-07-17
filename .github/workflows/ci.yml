@@ -175,7 +175,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            .build/apple/Products/Release/swift-dependency-audit
-            .build/*/release/swift-dependency-audit
+          path: ${{ matrix.platform == 'macOS' && '.build/apple/Products/Release/swift-dependency-audit' || format('.build/{0}/release/swift-dependency-audit', matrix.triple) }}
           retention-days: 7
