@@ -21,7 +21,7 @@ Clone the repository and build:
 
 ```bash
 git clone https://github.com/tonyarnold/swift-dependency-audit.git
-cd SwiftDependencyAudit
+cd swift-dependency-audit
 swift build -c release
 ```
 
