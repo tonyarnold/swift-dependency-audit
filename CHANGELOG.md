@@ -8,12 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Product-Level Dependency Detection**
+  - Analyzes external package products from `.build/checkouts` directory after `swift resolve`
+  - Detects imports satisfied by product dependencies to prevent false "missing dependency" reports
+  - Identifies redundant direct target dependencies when covered by product dependencies
+  - Enhanced verbose reporting shows product-to-target mappings and satisfied imports
+  - Seamless integration with existing whitelist functionality
+  - Comprehensive test coverage with 6 new tests using generic examples
+
 - **Enhanced Package.swift Parsing**
   - Support for variable-based Package.swift definitions (`let name = "..."`, `let targets = [...]`)
   - Variable resolution for package name, targets, dependencies, and products arrays
   - Support for complex Package.swift patterns with `targets.forEach` post-processing
   - Enhanced custom path support for targets with explicit `path:` parameters
   - Improved parsing of mixed target types (`.target`, `.testTarget`, `.executableTarget`, etc.)
+  - Product parsing with RegexBuilder patterns for `.library()`, `.executable()`, and `.plugin()` declarations
+  - External dependency extraction supporting both URL and path-based packages
   - All new parsing patterns implemented using RegexBuilder DSL for better maintainability
 
 - **IDE and CI/CD Integration**
@@ -24,6 +34,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File-specific error reporting with exact line numbers
 
 ### Fixed
+- **Exit Code Handling**
+  - Redundant direct dependencies now generate warnings instead of errors
+  - Tool exits with code 0 when only warnings are present (no missing or unused dependencies)
+  - Improved CI compatibility by treating redundant dependencies as non-blocking warnings
+
+### Enhanced
+- **Redundant Dependency Reporting**
+  - Enhanced redundant dependency warnings to show which specific product dependency provides each redundant direct dependency
+  - Updated output format: `• TargetName (available through ProductName from PackageName)`
+  - Enhanced JSON output to include detailed product/package attribution for redundant dependencies
+  - Improved actionability of redundant dependency warnings with complete provenance information
+
+### Fixed
+- **Product vs Target Dependency Detection**
+  - Fixed false positive redundant dependency warnings for product dependencies with matching target names
+  - Product dependencies like `.product(name: "Apollo", package: "apollo-ios")` are no longer incorrectly flagged as redundant
+  - Enhanced dependency parsing to properly distinguish between product dependencies and target dependencies
+  - Corrected redundancy detection to only flag actual target dependencies that are covered by product dependencies
+  - Resolves issue where tools reported confusing messages like "Apollo (available through Apollo from Apollo)"
+
 - **Package.swift Parser Robustness**
   - Fixed parsing failures with complex Package.swift files using variable declarations
   - Enhanced bracket counting for nested array structures in variable assignments
@@ -38,21 +68,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced dependency parsing to capture exact line numbers where dependencies are declared
 
 ### Technical Details
-- Enhanced `PackageParser` with RegexBuilder-based variable resolution patterns
-- Added `resolveStringVariable()`, `resolveTargetsVariable()`, `resolveDependenciesVariable()` methods
-- Added `applyForEachModifications()` for handling target post-processing
-- Enhanced target parsing with custom path extraction using `pathParameter` pattern
-- Improved `extractVariableArrayContent()` with robust bracket counting
-- Enhanced `ImportInfo` model with line number tracking
-- Added `DependencyInfo` model to track dependency line numbers in Package.swift
-- Added `XcodeOutput` module for Xcode-compatible format (`file:line: error: message`)
-- Added `GitHubActionsOutput` module for GitHub Actions format (`::error file=path,line=N::message`)
-- Updated `ImportScanner` to capture line numbers during regex matching
-- Enhanced `PackageParser` with `parseDependencyListWithLineNumbers()` and `findDependencyLineNumber()` methods
-- Extended `DependencyAnalyzer` with `generateXcodeReport()` and `generateGitHubActionsReport()` methods
-- Fixed loop logic in `generateXcodeReport()` and `generateGitHubActionsReport()` to report all import occurrences
-- Updated `Target` model to include `dependencyInfo` array with line number tracking
-- All existing functionality preserved with backward compatibility - all 38 tests pass
+- **Product-Level Dependency Analysis**
+  - Added `Product`, `ExternalPackage`, `ExternalPackageDependency`, and `ProductSatisfiedDependency` models
+  - New `ExternalPackageResolver` actor for discovering and parsing external packages from `.build/checkouts`
+  - Enhanced `PackageParser` with product parsing using RegexBuilder patterns (`parseProductDeclaration`, `parseProductTargets`)
+  - Enhanced `DependencyAnalyzer` with two-level analysis supporting both product and target dependencies
+  - Added product-to-target mapping for external package analysis
+  - Enhanced `AnalysisResult` with `productSatisfiedDependencies` and `redundantDirectDependencies` fields
+  - Updated reporting logic to show product dependency information in verbose mode
+  - Package caching for performance optimization during external package parsing
+
+- **Enhanced Package.swift Parsing**
+  - Enhanced `PackageParser` with RegexBuilder-based variable resolution patterns
+  - Added `resolveStringVariable()`, `resolveTargetsVariable()`, `resolveDependenciesVariable()`, `resolveProductsVariable()` methods
+  - Added `extractProducts()` and `extractExternalDependencies()` methods with RegexBuilder patterns
+  - Added `applyForEachModifications()` for handling target post-processing
+  - Enhanced target parsing with custom path extraction using `pathParameter` pattern
+  - Improved `extractVariableArrayContent()` with robust bracket counting
+  - Added `extractPackageNameFromURL()` and `extractPackageNameFromPath()` utilities
+
+- **IDE and CI/CD Integration**
+  - Enhanced `ImportInfo` model with line number tracking
+  - Added `DependencyInfo` model to track dependency line numbers in Package.swift
+  - Added `XcodeOutput` module for Xcode-compatible format (`file:line: error: message`)
+  - Added `GitHubActionsOutput` module for GitHub Actions format (`::error file=path,line=N::message`)
+  - Updated `ImportScanner` to capture line numbers during regex matching
+  - Enhanced `PackageParser` with `parseDependencyListWithLineNumbers()` and `findDependencyLineNumber()` methods
+  - Extended `DependencyAnalyzer` with `generateXcodeReport()` and `generateGitHubActionsReport()` methods
+  - Fixed loop logic in `generateXcodeReport()` and `generateGitHubActionsReport()` to report all import occurrences
+  - Updated `Target` model to include `dependencyInfo` array with line number tracking
+
+- All existing functionality preserved with backward compatibility - all 44 tests pass (38 existing + 6 new)
 
 ## [1.0.0] - 2025-07-16
 

@@ -2,6 +2,7 @@ import Foundation
 
 public actor DependencyAnalyzer {
     private let importScanner = ImportScanner()
+    private let externalPackageResolver = ExternalPackageResolver()
     
     public init() {}
     
@@ -28,26 +29,21 @@ public actor DependencyAnalyzer {
             }
         }
         
-        // Convert declared dependencies to a set for comparison
-        let declaredDependencies = Set(target.dependencies)
+        // Resolve external packages to build product-to-target mappings
+        let externalPackages = try await externalPackageResolver.resolveExternalPackages(for: packageInfo)
+        let productToTargetMapping = await externalPackageResolver.buildProductToTargetMapping(from: externalPackages)
         
-        // Find missing dependencies (imports without declarations)
-        let missingDependencies = allImports.subtracting(declaredDependencies)
-            .subtracting(getInternalModules(from: packageInfo, excluding: target))
-        
-        // Find unused dependencies (declarations without imports)
-        let unusedDependencies = declaredDependencies.subtracting(allImports)
-        
-        // Find correct dependencies (both declared and used)
-        let correctDependencies = declaredDependencies.intersection(allImports)
-        
-        return AnalysisResult(
+        // Enhanced dependency analysis with product support
+        let analysisResult = analyzeWithProductSupport(
             target: target,
-            missingDependencies: missingDependencies,
-            unusedDependencies: unusedDependencies,
-            correctDependencies: correctDependencies,
+            allImports: allImports,
+            packageInfo: packageInfo,
+            externalPackages: externalPackages,
+            productToTargetMapping: productToTargetMapping,
             sourceFiles: sourceFiles
         )
+        
+        return analysisResult
     }
     
     public func analyzePackage(_ packageInfo: PackageInfo, targetFilter: String? = nil, excludeTests: Bool = false, customWhitelist: Set<String> = []) async throws -> [AnalysisResult] {
@@ -75,6 +71,121 @@ public actor DependencyAnalyzer {
         return results
     }
     
+    public func analyzeWithProductSupport(
+        target: Target,
+        allImports: Set<String>,
+        packageInfo: PackageInfo,
+        externalPackages: [ExternalPackage],
+        productToTargetMapping: [String: [String]],
+        sourceFiles: [SourceFile]
+    ) -> AnalysisResult {
+        
+        let internalModules = getInternalModules(from: packageInfo, excluding: target)
+        
+        // Find which imports are satisfied by products
+        var productSatisfiedDependencies: [ProductSatisfiedDependency] = []
+        var productSatisfiedImports = Set<String>()
+        var redundantDirectDependencies: [RedundantDirectDependency] = []
+        
+        // Check for redundant direct dependencies - target dependencies that are also covered by product dependencies
+        let productDependencies = Set(target.dependencyInfo.compactMap { dep in
+            if case .product = dep.type {
+                return dep.name
+            }
+            return nil
+        })
+        
+        let targetDependencies = Set(target.dependencyInfo.compactMap { dep in
+            if case .target = dep.type {
+                return dep.name
+            }
+            return nil
+        })
+        
+        // For each product dependency, check if we also have redundant target dependencies
+        for productDep in productDependencies {
+            if let targets = productToTargetMapping[productDep] {
+                // Check if any of these targets are also directly declared as target dependencies
+                let redundantTargets = Set(targets).intersection(targetDependencies)
+                
+                // Find the package that provides this product
+                if let package = externalPackages.first(where: { pkg in
+                    pkg.products.contains { $0.name == productDep }
+                }) {
+                    // Create detailed redundant dependency entries
+                    for redundantTarget in redundantTargets {
+                        redundantDirectDependencies.append(
+                            RedundantDirectDependency(
+                                targetName: redundantTarget,
+                                providingProduct: productDep,
+                                packageName: package.name
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Check each import to see if it's satisfied by a product
+        // Note: imports have already been filtered through the whitelist in ImportScanner
+        // so we don't need to apply whitelist filtering again here
+        for importName in allImports {
+            // Skip if it's an internal module
+            if internalModules.contains(importName) {
+                continue
+            }
+            
+            // Check if this import is satisfied by any declared product dependency
+            for productDep in productDependencies {
+                if let targets = productToTargetMapping[productDep], targets.contains(importName) {
+                    // Find the package that provides this product
+                    if let package = externalPackages.first(where: { pkg in
+                        pkg.products.contains { $0.name == productDep }
+                    }) {
+                        productSatisfiedDependencies.append(
+                            ProductSatisfiedDependency(
+                                importName: importName,
+                                productName: productDep,
+                                packageName: package.name
+                            )
+                        )
+                        productSatisfiedImports.insert(importName)
+                        break
+                    }
+                }
+            }
+        }
+        
+        // Calculate dependencies as before, but exclude product-satisfied imports from missing deps
+        let importsNotSatisfiedByProducts = allImports.subtracting(productSatisfiedImports)
+        
+        let missingDependencies = importsNotSatisfiedByProducts
+            .subtracting(targetDependencies)
+            .subtracting(productDependencies)
+            .subtracting(internalModules)
+        
+        // For unused dependencies, exclude redundant direct dependencies (those covered by products)
+        let redundantTargetNames = Set(redundantDirectDependencies.map { $0.targetName })
+        let nonRedundantTargetDependencies = targetDependencies.subtracting(redundantTargetNames)
+        let unusedTargetDependencies = nonRedundantTargetDependencies.subtracting(allImports)
+        let unusedProductDependencies = productDependencies.subtracting(allImports).subtracting(productSatisfiedImports)
+        let unusedDependencies = unusedTargetDependencies.union(unusedProductDependencies)
+        
+        // Correct dependencies include both target dependencies and product dependencies that are actually used
+        let usedProductDependencies = productDependencies.intersection(allImports)
+        let correctDependencies = nonRedundantTargetDependencies.intersection(allImports).union(usedProductDependencies)
+        
+        return AnalysisResult(
+            target: target,
+            missingDependencies: missingDependencies,
+            unusedDependencies: unusedDependencies,
+            correctDependencies: correctDependencies,
+            productSatisfiedDependencies: productSatisfiedDependencies,
+            redundantDirectDependencies: redundantDirectDependencies,
+            sourceFiles: sourceFiles
+        )
+    }
+
     private func getInternalModules(from packageInfo: PackageInfo, excluding currentTarget: Target) -> Set<String> {
         // Get names of other targets in the same package that can be imported
         // Exclude test targets, system libraries, and binary targets from being considered as importable modules
@@ -90,19 +201,33 @@ public actor DependencyAnalyzer {
         output.append("")
         
         let totalIssues = results.reduce(0) { $0 + ($1.hasIssues ? 1 : 0) }
+        let totalWarnings = results.reduce(0) { $0 + ($1.hasWarnings ? 1 : 0) }
         let totalMissing = results.reduce(0) { $0 + $1.missingDependencies.count }
         let totalUnused = results.reduce(0) { $0 + $1.unusedDependencies.count }
+        let totalRedundant = results.reduce(0) { $0 + $1.redundantDirectDependencies.count }
+        let totalProductSatisfied = results.reduce(0) { $0 + $1.productSatisfiedDependencies.count }
         
-        if totalIssues == 0 {
+        if totalIssues == 0 && totalWarnings == 0 {
             if !quiet {
                 output.append(ColorOutput.success("All dependencies are correctly declared! ✨"))
+                if totalProductSatisfied > 0 {
+                    output.append(ColorOutput.info("Found \(totalProductSatisfied) import(s) satisfied by product dependencies"))
+                }
             }
-        } else {
+        } else if totalIssues > 0 {
             output.append(ColorOutput.info("Found \(totalIssues) target(s) with dependency issues"))
             output.append(ColorOutput.info("Total missing: \(totalMissing), unused: \(totalUnused)"))
+            if totalRedundant > 0 {
+                output.append(ColorOutput.info("Total redundant direct dependencies: \(totalRedundant)"))
+            }
+        } else if totalWarnings > 0 {
+            output.append(ColorOutput.warning("Found \(totalWarnings) target(s) with warnings"))
+            if totalRedundant > 0 {
+                output.append(ColorOutput.warning("Total redundant direct dependencies: \(totalRedundant)"))
+            }
         }
         
-        if !quiet || totalIssues > 0 {
+        if !quiet || totalIssues > 0 || totalWarnings > 0 {
             output.append("")
         }
         
@@ -129,14 +254,14 @@ public actor DependencyAnalyzer {
         case .plugin: "🔌"
         }
         
-        if !result.hasIssues && quiet {
-            // In quiet mode, don't show targets with no issues
+        if !result.hasIssues && !result.hasWarnings && quiet {
+            // In quiet mode, don't show targets with no issues or warnings
             return ""
         }
         
         output.append("\(targetTypeIcon) Target: \(ColorOutput.targetName(result.target.name))")
         
-        if !result.hasIssues {
+        if !result.hasIssues && !result.hasWarnings {
             let successMessage = ColorOutput.success("All dependencies correct")
             output.append("  " + successMessage)
             if verbose {
@@ -168,6 +293,30 @@ public actor DependencyAnalyzer {
             for dep in result.unusedDependencies.sorted() {
                 let depName = ColorOutput.dependencyName(dep)
                 output.append("    • \(depName)")
+            }
+        }
+        
+        // Redundant direct dependencies
+        if !result.redundantDirectDependencies.isEmpty {
+            let warningMessage = ColorOutput.warning("Redundant direct dependencies (\(result.redundantDirectDependencies.count)):")
+            output.append("  " + warningMessage)
+            for dep in result.redundantDirectDependencies.sorted(by: { $0.targetName < $1.targetName }) {
+                let targetName = ColorOutput.dependencyName(dep.targetName)
+                let productName = ColorOutput.dependencyName(dep.providingProduct)
+                let packageName = ColorOutput.dim(dep.packageName)
+                output.append("    • \(targetName) (available through \(productName) from \(packageName))")
+            }
+        }
+        
+        // Product satisfied dependencies (in verbose mode)
+        if verbose && !result.productSatisfiedDependencies.isEmpty {
+            let infoMessage = ColorOutput.info("Product-satisfied imports (\(result.productSatisfiedDependencies.count)):")
+            output.append("  " + infoMessage)
+            for dependency in result.productSatisfiedDependencies.sorted(by: { $0.importName < $1.importName }) {
+                let importName = ColorOutput.dependencyName(dependency.importName)
+                let productName = ColorOutput.dependencyName(dependency.productName)
+                let packageName = ColorOutput.dim(dependency.packageName)
+                output.append("    • \(importName) → \(productName) (\(packageName))")
             }
         }
         
