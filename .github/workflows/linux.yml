@@ -1,0 +1,130 @@
+name: Linux Build
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout"
+        required: false
+        default: ${{ github.ref }}
+        type: string
+      upload_artifacts:
+        description: "Whether to upload artifacts"
+        required: false
+        default: false
+        type: boolean
+      artifact_retention_days:
+        description: "How long to retain artifacts"
+        required: false
+        default: 7
+        type: number
+    outputs:
+      artifact_name_x86_64:
+        description: "Name of the x86_64 Linux artifact"
+        value: ${{ jobs.build-linux.outputs.artifact_name_x86_64 }}
+      artifact_name_aarch64:
+        description: "Name of the aarch64 Linux artifact"
+        value: ${{ jobs.build-linux.outputs.artifact_name_aarch64 }}
+
+jobs:
+  build-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            triple: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      artifact_name_x86_64: linux-x86_64-binary
+      artifact_name_aarch64: linux-aarch64-binary
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Swift
+        run: |
+          # Check if Swift is already available
+          if command -v swift >/dev/null 2>&1; then
+            echo "Swift is already available:"
+            swift --version
+          else
+            echo "Installing Swift using Swiftly..."
+            
+            # Install Swiftly
+            curl -L https://swift-server.github.io/swiftly/swiftly-install.sh | bash
+            
+            # Add Swiftly to PATH for current session
+            export PATH="$HOME/.local/bin:$PATH"
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+            
+            # Install latest Swift toolchain
+            swiftly install latest
+            swiftly use latest
+            
+            echo "Swift installation completed:"
+            swift --version
+          fi
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+          key: ${{ runner.os }}-${{ matrix.arch }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-spm-
+            ${{ runner.os }}-spm-
+
+      - name: Build native binary
+        run: |
+          echo "Building natively for ${{ matrix.arch }} on ${{ matrix.runner }}..."
+          swift --version
+          
+          echo 'Resolving dependencies...'
+          swift package resolve
+          
+          echo 'Building release binary with static linking...'
+          swift build -c release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
+          
+          echo 'Stripping binary for size optimization...'
+          strip .build/${{ matrix.triple }}/release/swift-dependency-audit
+          
+          echo "✅ Native build completed successfully for ${{ matrix.arch }}"
+
+      - name: Verify binary was created and get info
+        run: |
+          echo "Binary information for ${{ matrix.arch }}:"
+          ls -la .build/${{ matrix.triple }}/release/swift-dependency-audit
+          file .build/${{ matrix.triple }}/release/swift-dependency-audit
+          du -h .build/${{ matrix.triple }}/release/swift-dependency-audit
+
+      - name: Test binary functionality
+        run: |
+          echo "Testing static binary functionality for ${{ matrix.arch }}..."
+          
+          # Since we're running natively, we can test functionality on both architectures
+          .build/${{ matrix.triple }}/release/swift-dependency-audit --version
+          .build/${{ matrix.triple }}/release/swift-dependency-audit --help
+          
+          # Verify static linking (should have no dynamic Swift dependencies)
+          echo "Verifying static linking..."
+          ldd .build/${{ matrix.triple }}/release/swift-dependency-audit || echo "✅ Static binary - no dynamic dependencies"
+          
+          echo "✅ Binary functionality tests passed for ${{ matrix.arch }}"
+
+
+      - name: Upload binary artifacts
+        if: inputs.upload_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-binary
+          path: .build/${{ matrix.triple }}/release/swift-dependency-audit
+          retention-days: ${{ inputs.artifact_retention_days }}

@@ -77,9 +77,9 @@ jobs:
             .build/release/swift-dependency-audit
           retention-days: 7
 
-  test-docker-builds:
-    name: Test Docker Builds
-    uses: ./.github/workflows/docker.yml
+  test-linux-builds:
+    name: Test Linux Builds
+    uses: ./.github/workflows/linux.yml
     with:
       upload_artifacts: true
       artifact_retention_days: 7
@@ -128,7 +128,7 @@ jobs:
   validate-functionality:
     name: Validate Build Functionality
     runs-on: macos-15
-    needs: [test, test-docker-builds]
+    needs: [test, test-linux-builds]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

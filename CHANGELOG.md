@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Universal macOS binary supporting ARM64 and x86_64 architectures
   - Linux binaries for x86_64 and ARM64 architectures
   - Automated GitHub Actions release workflow for multi-platform builds
-  - Docker-based cross-compilation for Linux platforms
   - SHA256 checksum verification for binary integrity
   - Artifact bundle generation script for automated distribution
   - Hybrid binary/source build tool plugin execution following SwiftLint's proven pattern
@@ -98,7 +97,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `Scripts/spm-artifact-bundle.sh` for automated artifact bundle generation
   - Created `Scripts/spm-artifact-bundle-info.template` for Swift Package Manager manifest generation
   - Implemented GitHub Actions workflow with matrix strategy for cross-platform builds
-  - Docker-based Linux compilation using `swift:6.1` image with platform-specific builds
   - Binary optimization with `strip` for size reduction and `-Xswiftc -Osize` for performance
   - Artifact bundle structure following SPM schema version 1.0 with multi-platform variants
   - Automated checksum calculation with SHA256 for security verification

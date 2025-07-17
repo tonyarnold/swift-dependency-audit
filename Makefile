@@ -50,13 +50,36 @@ build_macos:
 	strip -rSTx $(MACOS_BUILD_DIR)/$(EXECUTABLE_NAME)
 	@echo "✅ macOS universal binary built at $(MACOS_BUILD_DIR)/$(EXECUTABLE_NAME)"
 
-# Build Linux binaries using Docker
+# Build Linux binaries
 .PHONY: build_linux
 build_linux: build_linux_x86_64 build_linux_aarch64
 
+# Native Linux builds (when running on appropriate architecture)
+.PHONY: build_linux_native
+build_linux_native:
+ifeq ($(shell uname -m), x86_64)
+	@echo "Building Linux x86_64 binary natively..."
+	mkdir -p $(LINUX_X86_64_BUILD_DIR)
+	swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu --static-swift-stdlib
+	strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME)
+	@echo "✅ Linux x86_64 binary built natively"
+else ifeq ($(shell uname -m), aarch64)
+	@echo "Building Linux ARM64 binary natively..."
+	mkdir -p $(LINUX_AARCH64_BUILD_DIR)
+	swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu --static-swift-stdlib
+	strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME)
+	@echo "✅ Linux ARM64 binary built natively"
+else
+	@echo "❌ Unsupported architecture for native Linux build: $(shell uname -m)"
+	@echo "Use 'make build_linux' for cross-compilation with development tools"
+	exit 1
+endif
+
+# Legacy cross-compilation targets using containerized Swift toolchain
+# NOTE: CI/CD uses native builds on appropriate runners for better performance
 .PHONY: build_linux_x86_64
 build_linux_x86_64:
-	@echo "Building Linux x86_64 binary..."
+	@echo "Building Linux x86_64 binary using containerized toolchain..."
 	mkdir -p $(LINUX_X86_64_BUILD_DIR)
 	docker run --rm \
 		--platform linux/amd64 \
@@ -72,7 +95,7 @@ build_linux_x86_64:
 
 .PHONY: build_linux_aarch64
 build_linux_aarch64:
-	@echo "Building Linux ARM64 binary using cross-compilation..."
+	@echo "Building Linux ARM64 binary using containerized cross-compilation..."
 	mkdir -p $(LINUX_AARCH64_BUILD_DIR)
 	docker run --rm \
 		--platform linux/amd64 \
@@ -135,7 +158,7 @@ update_package:
 package: build_all
 	@echo "Creating portable binary packages for version $(VERSION)..."
 	mkdir -p release
-	
+
 	# macOS universal binary
 	mkdir -p "$(PRODUCT_NAME)-$(VERSION)-macos-universal"
 	cp $(MACOS_BUILD_DIR)/$(EXECUTABLE_NAME) "$(PRODUCT_NAME)-$(VERSION)-macos-universal/"
@@ -143,7 +166,7 @@ package: build_all
 	cp README.md "$(PRODUCT_NAME)-$(VERSION)-macos-universal/" 2>/dev/null || true
 	tar -czf "release/$(PRODUCT_NAME)-$(VERSION)-macos-universal.tar.gz" "$(PRODUCT_NAME)-$(VERSION)-macos-universal"
 	rm -rf "$(PRODUCT_NAME)-$(VERSION)-macos-universal"
-	
+
 	# Linux x86_64 binary
 	mkdir -p "$(PRODUCT_NAME)-$(VERSION)-linux-x86_64"
 	cp $(LINUX_X86_64_BUILD_DIR)/$(EXECUTABLE_NAME) "$(PRODUCT_NAME)-$(VERSION)-linux-x86_64/"
@@ -151,7 +174,7 @@ package: build_all
 	cp README.md "$(PRODUCT_NAME)-$(VERSION)-linux-x86_64/" 2>/dev/null || true
 	tar -czf "release/$(PRODUCT_NAME)-$(VERSION)-linux-x86_64.tar.gz" "$(PRODUCT_NAME)-$(VERSION)-linux-x86_64"
 	rm -rf "$(PRODUCT_NAME)-$(VERSION)-linux-x86_64"
-	
+
 	# Linux ARM64 binary
 	mkdir -p "$(PRODUCT_NAME)-$(VERSION)-linux-aarch64"
 	cp $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME) "$(PRODUCT_NAME)-$(VERSION)-linux-aarch64/"
@@ -159,7 +182,7 @@ package: build_all
 	cp README.md "$(PRODUCT_NAME)-$(VERSION)-linux-aarch64/" 2>/dev/null || true
 	tar -czf "release/$(PRODUCT_NAME)-$(VERSION)-linux-aarch64.tar.gz" "$(PRODUCT_NAME)-$(VERSION)-linux-aarch64"
 	rm -rf "$(PRODUCT_NAME)-$(VERSION)-linux-aarch64"
-	
+
 	# Generate checksums
 	cd release && shasum -a 256 *.tar.gz > checksums.txt
 	@echo "✅ Portable packages created in release/ directory"
@@ -220,10 +243,11 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Build Targets:"
-	@echo "  build          Build for current platform"
-	@echo "  build_macos    Build universal macOS binary"
-	@echo "  build_linux    Build Linux binaries (both architectures)"
-	@echo "  build_all      Build all platform binaries"
+	@echo "  build               Build for current platform"
+	@echo "  build_macos         Build universal macOS binary"
+	@echo "  build_linux         Build Linux binaries using development tools (both architectures)"
+	@echo "  build_linux_native  Build Linux binary natively (current architecture only)"
+	@echo "  build_all           Build all platform binaries"
 	@echo ""
 	@echo "Test Targets:"
 	@echo "  test           Run Swift tests"
@@ -248,3 +272,8 @@ help:
 	@echo "Environment:"
 	@echo "  Platform: $(PLATFORM)"
 	@echo "  Version:  $(VERSION)"
+	@echo ""
+	@echo "Notes:"
+	@echo "  - CI/CD uses native Linux builds on appropriate runners"
+	@echo "  - For local development, 'build_linux' provides cross-compilation with development tools"
+	@echo "  - 'build_linux_native' requires running on target architecture"

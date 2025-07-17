@@ -93,7 +93,7 @@ jobs:
           
   build-linux:
     name: Build Linux Binaries
-    uses: ./.github/workflows/docker.yml
+    uses: ./.github/workflows/linux.yml
     with:
       upload_artifacts: true
       artifact_retention_days: 30
