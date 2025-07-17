@@ -8,6 +8,47 @@ import ArgumentParser
 import SwiftDependencyAuditLib
 import Foundation
 
+/// Get the version string, trying multiple sources
+private func getVersion() -> String {
+    // First try to get version from git if available (for development)
+    if let gitVersion = getGitVersion() {
+        return gitVersion
+    }
+    
+    // Fallback to embedded version
+    #if DEBUG
+    return "dev"
+    #else
+    return "1.0.0"  // Fallback for release builds
+    #endif
+}
+
+/// Attempt to get version from git (for development builds)
+private func getGitVersion() -> String? {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+    process.arguments = ["describe", "--tags", "--always"]
+    
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = Pipe() // Suppress error output
+    
+    do {
+        try process.run()
+        process.waitUntilExit()
+        
+        guard process.terminationStatus == 0 else { return nil }
+        
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove 'v' prefix if present
+        return output?.hasPrefix("v") == true ? String(output!.dropFirst()) : output
+    } catch {
+        return nil
+    }
+}
+
 public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
     case `default` = "default"
     case xcode = "xcode"
@@ -25,7 +66,7 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
             This tool analyzes Swift Package.swift files, scans source directories for import statements,
             and compares declared dependencies against actual usage to identify missing or unused dependencies.
             """,
-        version: "1.0.0"
+        version: getVersion()
     )
 
     @Argument(help: "Path to Package.swift or package directory (default: current directory)")

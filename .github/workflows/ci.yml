@@ -91,6 +91,10 @@ jobs:
 
       - name: Build optimized binary
         run: |
+          # Show version that will be detected
+          VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "dev")
+          echo "Version will be detected as: $VERSION"
+          
           if [ "${{ matrix.platform }}" = "macOS" ]; then
             echo "Building universal macOS binary..."
             swift build --configuration release --arch arm64 --arch x86_64 -Xswiftc -Osize

@@ -4,7 +4,6 @@
 # Variables
 PRODUCT_NAME = swift-dependency-audit
 EXECUTABLE_NAME = swift-dependency-audit
-VERSION_FILE = VERSION
 SWIFT_BUILD_FLAGS = -c release -Xswiftc -Osize
 MACOS_BUILD_DIR = .build/apple/Products/Release
 LINUX_X86_64_BUILD_DIR = .build/x86_64-unknown-linux-gnu/release
@@ -18,8 +17,8 @@ else
     PLATFORM = linux
 endif
 
-# Version handling
-VERSION := $(shell cat $(VERSION_FILE) 2>/dev/null || echo "1.0.0")
+# Version handling - get from git tags
+VERSION := $(shell git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "1.0.0-dev")
 
 # Default target
 .PHONY: all
@@ -36,11 +35,7 @@ clean:
 # Build for current platform
 .PHONY: build
 build:
-ifeq ($(PLATFORM), macos)
 	swift build $(SWIFT_BUILD_FLAGS)
-else
-	swift build $(SWIFT_BUILD_FLAGS)
-endif
 
 # Build universal macOS binary
 .PHONY: build_macos
@@ -60,13 +55,13 @@ build_linux_native:
 ifeq ($(shell uname -m), x86_64)
 	@echo "Building Linux x86_64 binary natively..."
 	mkdir -p $(LINUX_X86_64_BUILD_DIR)
-	swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu --static-swift-stdlib
+	swift build $(SWIFT_BUILD_FLAGS)  --triple x86_64-unknown-linux-gnu --static-swift-stdlib
 	strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME)
 	@echo "✅ Linux x86_64 binary built natively"
 else ifeq ($(shell uname -m), aarch64)
 	@echo "Building Linux ARM64 binary natively..."
 	mkdir -p $(LINUX_AARCH64_BUILD_DIR)
-	swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu --static-swift-stdlib
+	swift build $(SWIFT_BUILD_FLAGS)  --triple aarch64-unknown-linux-gnu --static-swift-stdlib
 	strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME)
 	@echo "✅ Linux ARM64 binary built natively"
 else
@@ -88,7 +83,7 @@ build_linux_x86_64:
 		-e HOME=/tmp \
 		swift:6.1 \
 		bash -c " \
-			swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu --static-swift-stdlib && \
+			swift build $(SWIFT_BUILD_FLAGS)  --triple x86_64-unknown-linux-gnu --static-swift-stdlib && \
 			strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
 		"
 	@echo "✅ Linux x86_64 binary built at $(LINUX_X86_64_BUILD_DIR)/$(EXECUTABLE_NAME)"
@@ -107,7 +102,7 @@ build_linux_aarch64:
 			echo 'Installing cross-compilation tools...' && \
 			apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
 			echo 'Cross-compiling for ARM64...' && \
-			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib -Xswiftc -resource-dir -Xswiftc /usr/lib/swift_static && \
+			swift build $(SWIFT_BUILD_FLAGS)  --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib -Xswiftc -resource-dir -Xswiftc /usr/lib/swift_static && \
 			aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
 		"
 	@echo "✅ Linux ARM64 binary built at $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME)"

@@ -40,7 +40,15 @@ jobs:
           
       - name: Build universal binary with validation
         run: |
-          echo "Building universal macOS binary..."
+          # Show version that will be detected
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag_name }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          
+          echo "Building universal macOS binary (version will be detected as: $VERSION)..."
           swift build -c release --arch arm64 --arch x86_64 -Xswiftc -Osize
           
           # Verify the binary was created
@@ -145,7 +153,15 @@ jobs:
 
       - name: Build optimized static binary
         run: |
-          echo "Building static Linux binary for ${{ matrix.arch }}..."
+          # Show version that will be detected
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag_name }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          
+          echo "Building static Linux binary for ${{ matrix.arch }} (version will be detected as: $VERSION)..."
           swift package resolve
           swift build -c release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
           strip .build/${{ matrix.triple }}/release/swift-dependency-audit
@@ -204,9 +220,6 @@ jobs:
           fi
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           echo "Creating artifact bundle for version $VERSION using Makefile"
-          
-          # Update VERSION file for Makefile
-          echo "$VERSION" > VERSION
           
           # Use Makefile to create artifact bundle (calls the scripts internally)
           make spm_artifactbundle
