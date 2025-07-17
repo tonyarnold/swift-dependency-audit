@@ -12,7 +12,7 @@ struct DependencyAuditPlugin: BuildToolPlugin {
             return []
         }
         
-        let tool = try context.tool(named: "swift-dependency-audit")
+        let tool = try context.tool(named: "SwiftDependencyAudit")
         
         // Create output directory for plugin results
         let outputDir = context.pluginWorkDirectoryURL.appendingPathComponent("DependencyAudit")
