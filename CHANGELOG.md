@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved CI compatibility by treating redundant dependencies as non-blocking warnings
 
 ### Enhanced
+- **Build Tool Plugin Robustness**
+  - Enhanced target filtering to use `SourceModuleTarget` type checking instead of analyzing all targets
+  - Improved test target detection using `sourceTarget.kind != .test` instead of brittle string matching
+  - Optimized plugin to only run on source-based targets, reducing unnecessary executions
+
+### Enhanced
 - **Redundant Dependency Reporting**
   - Enhanced redundant dependency warnings to show which specific product dependency provides each redundant direct dependency
   - Updated output format: `• TargetName (available through ProductName from PackageName)`
@@ -83,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented `createBuildCommands(context:target:)` method for prebuild command generation
   - Plugin executes `swift run swift-dependency-audit` with target-specific arguments
   - Uses modern PackagePlugin API with `pluginWorkDirectoryURL` and `directoryURL` properties
-  - Target filtering logic analyzes all targets and lets the tool handle inappropriate target types
+  - Target filtering with `SourceModuleTarget` type checking to reduce overhead
+  - Proper test target detection using `sourceTarget.kind != .test` instead of string matching
   - Automatic test exclusion for non-test targets via `--exclude-tests` flag
   - Xcode-compatible output format via `--output-format xcode` for seamless IDE integration
   - Quiet mode operation via `--quiet` flag to focus on issues during builds

@@ -7,8 +7,8 @@ struct DependencyAuditPlugin: BuildToolPlugin {
     
     /// Creates build commands to run dependency validation
     func createBuildCommands(context: PluginContext, target: Target) throws -> [Command] {
-        // Only run on source-based targets that could have dependencies
-        guard shouldAnalyzeTarget(target) else {
+        // Only analyze source-based targets to reduce overhead
+        guard let sourceTarget = target as? SourceModuleTarget else {
             return []
         }
         
@@ -26,14 +26,13 @@ struct DependencyAuditPlugin: BuildToolPlugin {
             # Run dependency audit for specific target
             swift run swift-dependency-audit \\
                 "\(context.package.directoryURL.path)" \\
-                --target "\(target.name)" \\
+                --target "\(sourceTarget.name)" \\
                 --output-format xcode \\
                 --quiet
             """
         
-        // Add additional arguments based on target type
-        // Check if target name contains "Test" to identify test targets
-        if !target.name.lowercased().contains("test") {
+        // Check if the target is not a test target using the kind property
+        if sourceTarget.kind != .test {
             // For non-test targets, exclude test dependencies from analysis
             scriptContent += " \\\n                --exclude-tests"
         }
@@ -42,7 +41,7 @@ struct DependencyAuditPlugin: BuildToolPlugin {
         // Using prebuild because dependency state can change between builds
         // and we want to validate on every build
         let command = Command.prebuildCommand(
-            displayName: "Dependency Audit for \(target.name)",
+            displayName: "Dependency Audit for \(sourceTarget.name)",
             executable: URL(fileURLWithPath: "/bin/bash"),
             arguments: [
                 "-c",
@@ -50,7 +49,7 @@ struct DependencyAuditPlugin: BuildToolPlugin {
                 # Create output directory
                 mkdir -p "\(outputDir.path)"
                 
-                # Execute dependency audit directly
+                # Execute dependency audit
                 \(scriptContent)
                 """
             ],
@@ -58,12 +57,5 @@ struct DependencyAuditPlugin: BuildToolPlugin {
         )
         
         return [command]
-    }
-    
-    /// Determines if a target should be analyzed for dependencies
-    private func shouldAnalyzeTarget(_ target: Target) -> Bool {
-        // For now, analyze all targets and let the tool itself filter appropriately
-        // The tool will skip targets that don't have source directories
-        return true
     }
 }
