@@ -451,6 +451,10 @@ public actor PackageParser {
     
     public init() {}
     
+    public func parseContent(_ content: String, packageDirectory: String) async throws -> PackageInfo {
+        return try await parsePackageContent(content, packageDirectory: packageDirectory)
+    }
+    
     public func parsePackage(at path: String) async throws -> PackageInfo {
         let packagePath = resolvePackagePath(path)
         
@@ -482,10 +486,18 @@ public actor PackageParser {
         // Extract targets
         let targets = try extractTargets(from: content, packageContent: content)
         
+        // Extract products
+        let products = try extractProducts(from: content, packageName: packageName)
+        
+        // Extract external package dependencies
+        let externalDependencies = try extractExternalDependencies(from: content)
+        
         return PackageInfo(
             name: packageName,
             targets: targets,
             dependencies: dependencies,
+            products: products,
+            externalDependencies: externalDependencies,
             path: packageDirectory
         )
     }
@@ -887,5 +899,202 @@ public actor PackageParser {
         let pascalCase = components.map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }.joined()
         
         return pascalCase
+    }
+    
+    // MARK: - Product Extraction Methods
+    
+    private func extractProducts(from content: String, packageName: String) throws -> [Product] {
+        var products: [Product] = []
+        
+        // Try to get products from variable declaration first
+        var productsSection = resolveProductsVariable(in: content)
+        
+        // If no variable found, look for products array in Package constructor
+        if productsSection == nil {
+            productsSection = extractSection(from: content, sectionName: "products")
+        }
+        
+        guard let section = productsSection, !section.isEmpty else {
+            return products
+        }
+        
+        // Parse product declarations using RegexBuilder
+        products = parseProductsFromSection(section, packageName: packageName)
+        
+        return products
+    }
+    
+    private func parseProductsFromSection(_ productsSection: String, packageName: String) -> [Product] {
+        var products: [Product] = []
+        
+        // Product declaration pattern using RegexBuilder (unused in this method)
+        
+        // Find all product declarations
+        let productDeclarations = findProductDeclarations(in: productsSection)
+        
+        for declaration in productDeclarations {
+            if let product = parseProductDeclaration(declaration, packageName: packageName) {
+                products.append(product)
+            }
+        }
+        
+        return products
+    }
+    
+    private func findProductDeclarations(in content: String) -> [String] {
+        var declarations: [String] = []
+        var searchRange = content.startIndex..<content.endIndex
+        
+        let productTypePattern = Regex {
+            "."
+            ChoiceOf {
+                "library"
+                "executable"
+                "plugin"
+            }
+            ZeroOrMore(.whitespace)
+            "("
+        }
+        .dotMatchesNewlines()
+        
+        // Find each product declaration
+        while let match = content[searchRange].firstMatch(of: productTypePattern) {
+            // Calculate the absolute start position
+            let absoluteStart = content.index(content.startIndex, offsetBy: content.distance(from: content.startIndex, to: match.range.lowerBound))
+            
+            // Find the matching closing parenthesis for this product declaration
+            if let endIndex = findMatchingClosingParenthesis(in: content, startingAfter: match.range.upperBound) {
+                let fullDeclaration = content[absoluteStart...endIndex]
+                declarations.append(String(fullDeclaration))
+                
+                // Move search range past this match
+                searchRange = content.index(after: endIndex)..<content.endIndex
+            } else {
+                break
+            }
+        }
+        
+        return declarations
+    }
+    
+    public func parseProductDeclaration(_ declaration: String, packageName: String) -> Product? {
+        // Extract product type
+        let productTypePattern = Regex {
+            "."
+            Capture {
+                ChoiceOf {
+                    "library"
+                    "executable"
+                    "plugin"
+                }
+            }
+            ZeroOrMore(.whitespace)
+            "("
+        }
+        .dotMatchesNewlines()
+        
+        guard let typeMatch = declaration.firstMatch(of: productTypePattern) else {
+            return nil
+        }
+        
+        let productTypeStr = String(typeMatch.1)
+        let productType: Product.ProductType
+        
+        switch productTypeStr {
+        case "library":
+            productType = .library
+        case "executable":
+            productType = .executable
+        case "plugin":
+            productType = .plugin
+        default:
+            productType = .library
+        }
+        
+        // Extract name using RegexBuilder pattern
+        guard let nameMatch = declaration.firstMatch(of: nameParameter) else {
+            return nil
+        }
+        
+        let name = String(nameMatch.2)
+        
+        // Extract targets array
+        let targets = parseProductTargets(from: declaration)
+        
+        return Product(name: name, type: productType, targets: targets, packageName: packageName)
+    }
+    
+    public func parseProductTargets(from declaration: String) -> [String] {
+        var targets: [String] = []
+        
+        // Simpler regex approach - look for targets: followed by array content
+        let targetsRegex = /targets:\s*\[([^\]]+)\]/
+        
+        guard let match = declaration.firstMatch(of: targetsRegex) else {
+            return targets
+        }
+        
+        let targetsContent = String(match.1)
+        
+        // Extract quoted target names
+        let targetNameRegex = /"([^"]+)"/
+        for targetMatch in targetsContent.matches(of: targetNameRegex) {
+            targets.append(String(targetMatch.1))
+        }
+        
+        return targets
+    }
+    
+    // MARK: - External Package Dependency Extraction
+    
+    private func extractExternalDependencies(from content: String) throws -> [ExternalPackageDependency] {
+        var externalDependencies: [ExternalPackageDependency] = []
+        
+        // Try to get dependencies from variable declaration first
+        var dependenciesSection = resolveDependenciesVariable(in: content)
+        
+        // If no variable found, look for dependencies array in Package constructor
+        if dependenciesSection == nil {
+            dependenciesSection = extractSection(from: content, sectionName: "dependencies")
+        }
+        
+        guard let section = dependenciesSection, !section.isEmpty else {
+            return externalDependencies
+        }
+        
+        // Extract package URLs
+        let urlRegex = /\.package\s*\(\s*url:\s*"([^"]+)"/
+        for match in section.matches(of: urlRegex) {
+            let url = String(match.1)
+            let packageName = extractPackageNameFromURL(url)
+            externalDependencies.append(ExternalPackageDependency(packageName: packageName, url: url))
+        }
+        
+        // Extract package paths
+        let pathRegex = /\.package\s*\(\s*path:\s*"([^"]+)"\s*\)/
+        for match in section.matches(of: pathRegex) {
+            let path = String(match.1)
+            let packageName = extractPackageNameFromPath(path)
+            externalDependencies.append(ExternalPackageDependency(packageName: packageName, path: path))
+        }
+        
+        return externalDependencies
+    }
+    
+    private func extractPackageNameFromURL(_ url: String) -> String {
+        // Extract package name from URL like "https://github.com/apple/swift-algorithms.git"
+        let components = url.components(separatedBy: "/")
+        guard let lastComponent = components.last else {
+            return url
+        }
+        
+        let packageName = lastComponent.replacingOccurrences(of: ".git", with: "")
+        return packageName
+    }
+    
+    private func extractPackageNameFromPath(_ path: String) -> String {
+        // Extract package name from path like "../DataLayer"
+        let url = URL(fileURLWithPath: path)
+        return url.lastPathComponent
     }
 }

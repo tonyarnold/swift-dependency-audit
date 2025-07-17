@@ -149,3 +149,7 @@ See PROJECT_PLAN.md for detailed implementation phases and technical specificati
 ## Swift Development Best Practices
 
 - Use the RegexBuilder by default when designing regular expressions.
+
+## Testing Guidelines
+
+- Please do not include identifying information in any tests you create. No product or company names.
