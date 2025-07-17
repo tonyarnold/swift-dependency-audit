@@ -17,17 +17,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15]
         include:
           - os: macos-15
             xcode: "16.4"
+            platform: "macOS"
+          - os: ubuntu-latest
+            platform: "Linux"
+            swift_version: "6.1"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select Xcode version
+      - name: Select Xcode version (macOS only)
+        if: matrix.platform == 'macOS'
         run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+
+      - name: Setup Swift (Linux only)
+        if: matrix.platform == 'Linux'
+        uses: vapor/swiftly-action@v0.2
+        with:
+          toolchain: ${{ matrix.swift_version }}
 
       - name: Show Swift version
         run: swift --version
@@ -54,14 +64,16 @@ jobs:
       - name: Run tests
         run: swift test --configuration debug --enable-code-coverage
 
-      - name: Generate code coverage report
+      - name: Generate code coverage report (macOS only)
+        if: matrix.platform == 'macOS'
         run: |
           xcrun llvm-cov export -format="lcov" \
             .build/debug/SwiftDependencyAuditPackageTests.xctest/Contents/MacOS/SwiftDependencyAuditPackageTests \
             -instr-profile=.build/debug/codecov/default.profdata > coverage.lcov
         continue-on-error: true
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage to Codecov (macOS only)
+        if: matrix.platform == 'macOS'
         uses: codecov/codecov-action@v4
         with:
           file: coverage.lcov
@@ -77,9 +89,49 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ matrix.os }}
+          name: build-artifacts-${{ matrix.platform }}
           path: |
             .build/release/swift-dependency-audit
+          retention-days: 7
+
+  test-cross-platform:
+    name: Test Cross-Platform Docker Builds
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test Docker build for ${{ matrix.arch }}
+        run: |
+          # Test the same Docker build process used in releases
+          docker run --rm \
+            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
+            -v $PWD:/workspace \
+            -w /workspace \
+            swift:6.1 \
+            bash -c "
+              echo 'Testing Swift ${{ matrix.arch }} build...' && \
+              swift --version && \
+              swift build -c release --triple ${{ matrix.arch }}-unknown-linux-gnu && \
+              echo 'Build successful for ${{ matrix.arch }}' && \
+              ls -la .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
+            "
+
+      - name: Upload Docker build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-${{ matrix.arch }}
+          path: |
+            .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
           retention-days: 7
 
   lint:

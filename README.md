@@ -94,9 +94,9 @@ swift run swift-dependency-audit --output-format xcode --quiet
 
 SwiftDependencyAudit includes a Swift Package Manager build tool plugin that automatically validates dependencies during builds, providing seamless integration with both Swift Package Manager and Xcode.
 
-### Automatic Build Integration
+### Plugin Integration
 
-When you add SwiftDependencyAudit as a dependency to your package, you can enable automatic dependency validation during builds by applying the build tool plugin to your targets:
+The build tool plugin uses pre-compiled binary targets for optimal performance across multiple platforms:
 
 ```swift
 // Package.swift
@@ -123,6 +123,18 @@ let package = Package(
     ]
 )
 ```
+
+**Note**: Build tool plugins require binary targets and cannot use source compilation. The plugin automatically uses the appropriate pre-compiled binary for your platform.
+
+### Binary Target Distribution
+
+SwiftDependencyAudit provides pre-compiled binary targets for multiple platforms:
+
+- **macOS**: Universal binary supporting both ARM64 (Apple Silicon) and x86_64 (Intel)
+- **Linux**: x86_64 and ARM64 architectures
+- **Cross-platform**: Artifact bundles compatible with Swift Package Manager
+
+Binary targets provide significant performance improvements over source compilation, especially in CI/CD environments and large projects.
 
 ### Plugin Features
 

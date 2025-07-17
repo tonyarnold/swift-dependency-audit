@@ -34,7 +34,13 @@ let package = Package(
         ),
         .plugin(
             name: "DependencyAuditPlugin",
-            capability: .buildTool()
+            capability: .buildTool(),
+            dependencies: ["SwiftDependencyAuditBinary"]
+        ),
+        .binaryTarget(
+            name: "SwiftDependencyAuditBinary",
+            url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/v1.0.0/swift-dependency-audit.artifactbundle.zip",
+            checksum: "PLACEHOLDER_CHECKSUM_WILL_BE_UPDATED_ON_RELEASE"
         ),
     ]
 )
