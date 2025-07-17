@@ -1,6 +1,7 @@
 import Foundation
 
 public actor ExternalPackageResolver {
+    private static let maxSearchDepth = 5
     private let packageParser: PackageParser
     private var packageCache: [String: ExternalPackage] = [:]
     
@@ -42,7 +43,7 @@ public actor ExternalPackageResolver {
         
         // Try parent directories (in case we're in a subdirectory)
         var currentURL = packageURL.deletingLastPathComponent()
-        for _ in 0..<5 { // Limit search depth
+        for _ in 0..<Self.maxSearchDepth { // Limit search depth
             let buildURL = currentURL.appendingPathComponent(".build")
             let checkoutsURL = buildURL.appendingPathComponent("checkouts")
             

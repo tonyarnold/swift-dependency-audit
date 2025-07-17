@@ -937,8 +937,6 @@ public actor PackageParser {
     private func parseProductsFromSection(_ productsSection: String, packageName: String) -> [Product] {
         var products: [Product] = []
         
-        // Product declaration pattern using RegexBuilder (unused in this method)
-        
         // Find all product declarations
         let productDeclarations = findProductDeclarations(in: productsSection)
         
