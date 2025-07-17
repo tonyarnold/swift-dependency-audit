@@ -84,7 +84,7 @@ build_linux_aarch64:
 			echo 'Installing cross-compilation tools...' && \
 			apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
 			echo 'Cross-compiling for ARM64...' && \
-			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib && \
+			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib -Xswiftc -resource-dir -Xswiftc /usr/lib/swift_static && \
 			aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
 		"
 	@echo "✅ Linux ARM64 binary built at $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME)"

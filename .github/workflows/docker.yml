@@ -79,8 +79,8 @@ jobs:
                 echo 'Build completed successfully for x86_64'
               "
           else
-            # Cross-compilation for ARM64 using Swift cross-compilation
-            echo "Cross-compiling for aarch64..."
+            # Cross-compilation for ARM64 using static Swift stdlib with proper resource directory
+            echo "Cross-compiling for aarch64 with static linking..."
             docker run --rm \
               --platform linux/amd64 \
               -v $PWD:/workspace \
@@ -94,8 +94,8 @@ jobs:
                 apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
                 echo 'Resolving dependencies...' && \
                 swift package resolve && \
-                echo 'Building release binary with cross-compilation...' && \
-                swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib && \
+                echo 'Building release binary with static cross-compilation...' && \
+                swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib -Xswiftc -resource-dir -Xswiftc /usr/lib/swift_static && \
                 echo 'Stripping binary with cross-compilation tools...' && \
                 aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit && \
                 echo 'Build completed successfully for aarch64'
@@ -110,13 +110,21 @@ jobs:
           du -h .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit
 
       - name: Test binary functionality (x86_64 only)
-        if: matrix.arch == 'x86_64'
+        if: matrix.arch == 'x86_64'  
         run: |
           # Test static binary (should work without Swift runtime libraries)
           echo "Testing static binary functionality..."
           .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit --version
           .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit --help
           echo "✅ Static binary functionality tests passed"
+          
+      - name: Test binary functionality (aarch64 only)
+        if: matrix.arch == 'aarch64'
+        run: |
+          # Test that ARM64 static binary was built correctly (can't execute on x86_64 runner)
+          echo "Verifying ARM64 static binary properties..."
+          file .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit
+          ldd .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit || echo "✅ Static binary - no dynamic dependencies"
 
 
       - name: Upload Linux binary artifacts

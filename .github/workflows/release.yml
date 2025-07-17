@@ -257,8 +257,8 @@ jobs:
           ## Supported Platforms
           
           - macOS (Universal: ARM64 + x86_64)
-          - Linux x86_64
-          - Linux ARM64
+          - Linux x86_64 (static binary, no Swift runtime required)
+          - Linux ARM64 (static binary, no Swift runtime required)
           
           ## Plugin Usage
           
