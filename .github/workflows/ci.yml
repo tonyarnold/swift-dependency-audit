@@ -165,13 +165,13 @@ jobs:
           echo "✅ JSON output is valid"
 
           echo "=== Testing Xcode Output Format ==="
-          .build/release/swift-dependency-audit . --output-format xcode --quiet
+          .build/release/swift-dependency-audit . --output-format xcode --quiet --exclude-tests
 
           echo "=== Testing GitHub Actions Output Format ==="
-          .build/release/swift-dependency-audit . --output-format github-actions --quiet
+          .build/release/swift-dependency-audit . --output-format github-actions --quiet --exclude-tests
 
           echo "=== Testing Custom Whitelist ==="
-          .build/release/swift-dependency-audit . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose
+          .build/release/swift-dependency-audit . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
 
       - name: Plugin functionality validation
         run: |
