@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File-specific error reporting with exact line numbers
 
 ### Fixed
+- **Exit Code Handling**
+  - Redundant direct dependencies now generate warnings instead of errors
+  - Tool exits with code 0 when only warnings are present (no missing or unused dependencies)
+  - Improved CI compatibility by treating redundant dependencies as non-blocking warnings
+
 - **Package.swift Parser Robustness**
   - Fixed parsing failures with complex Package.swift files using variable declarations
   - Enhanced bracket counting for nested array structures in variable assignments

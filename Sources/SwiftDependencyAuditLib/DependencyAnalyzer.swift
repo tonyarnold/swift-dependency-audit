@@ -167,27 +167,33 @@ public actor DependencyAnalyzer {
         output.append("")
         
         let totalIssues = results.reduce(0) { $0 + ($1.hasIssues ? 1 : 0) }
+        let totalWarnings = results.reduce(0) { $0 + ($1.hasWarnings ? 1 : 0) }
         let totalMissing = results.reduce(0) { $0 + $1.missingDependencies.count }
         let totalUnused = results.reduce(0) { $0 + $1.unusedDependencies.count }
         let totalRedundant = results.reduce(0) { $0 + $1.redundantDirectDependencies.count }
         let totalProductSatisfied = results.reduce(0) { $0 + $1.productSatisfiedDependencies.count }
         
-        if totalIssues == 0 {
+        if totalIssues == 0 && totalWarnings == 0 {
             if !quiet {
                 output.append(ColorOutput.success("All dependencies are correctly declared! ✨"))
                 if totalProductSatisfied > 0 {
                     output.append(ColorOutput.info("Found \(totalProductSatisfied) import(s) satisfied by product dependencies"))
                 }
             }
-        } else {
+        } else if totalIssues > 0 {
             output.append(ColorOutput.info("Found \(totalIssues) target(s) with dependency issues"))
             output.append(ColorOutput.info("Total missing: \(totalMissing), unused: \(totalUnused)"))
             if totalRedundant > 0 {
                 output.append(ColorOutput.info("Total redundant direct dependencies: \(totalRedundant)"))
             }
+        } else if totalWarnings > 0 {
+            output.append(ColorOutput.warning("Found \(totalWarnings) target(s) with warnings"))
+            if totalRedundant > 0 {
+                output.append(ColorOutput.warning("Total redundant direct dependencies: \(totalRedundant)"))
+            }
         }
         
-        if !quiet || totalIssues > 0 {
+        if !quiet || totalIssues > 0 || totalWarnings > 0 {
             output.append("")
         }
         
@@ -214,14 +220,14 @@ public actor DependencyAnalyzer {
         case .plugin: "🔌"
         }
         
-        if !result.hasIssues && quiet {
-            // In quiet mode, don't show targets with no issues
+        if !result.hasIssues && !result.hasWarnings && quiet {
+            // In quiet mode, don't show targets with no issues or warnings
             return ""
         }
         
         output.append("\(targetTypeIcon) Target: \(ColorOutput.targetName(result.target.name))")
         
-        if !result.hasIssues {
+        if !result.hasIssues && !result.hasWarnings {
             let successMessage = ColorOutput.success("All dependencies correct")
             output.append("  " + successMessage)
             if verbose {
