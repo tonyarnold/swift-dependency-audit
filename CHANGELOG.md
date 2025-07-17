@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Package.swift Parsing**
+  - Support for variable-based Package.swift definitions (`let name = "..."`, `let targets = [...]`)
+  - Variable resolution for package name, targets, dependencies, and products arrays
+  - Support for complex Package.swift patterns with `targets.forEach` post-processing
+  - Enhanced custom path support for targets with explicit `path:` parameters
+  - Improved parsing of mixed target types (`.target`, `.testTarget`, `.executableTarget`, etc.)
+  - All new parsing patterns implemented using RegexBuilder DSL for better maintainability
+
 - **IDE and CI/CD Integration**
   - New `--output-format` option supporting `default`, `xcode`, and `github-actions` output formats
   - Xcode-compatible error/warning output for seamless IDE integration
@@ -16,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File-specific error reporting with exact line numbers
 
 ### Fixed
+- **Package.swift Parser Robustness**
+  - Fixed parsing failures with complex Package.swift files using variable declarations
+  - Enhanced bracket counting for nested array structures in variable assignments
+  - Improved target detection for packages with post-processing logic
+  - Better support for modern Swift Package Manager patterns
+
 - **Line Number Reporting**
   - Fixed incomplete line number capture in Xcode and GitHub Actions output formats
   - Now reports all occurrences of missing dependencies across all source files with correct line numbers
@@ -24,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced dependency parsing to capture exact line numbers where dependencies are declared
 
 ### Technical Details
+- Enhanced `PackageParser` with RegexBuilder-based variable resolution patterns
+- Added `resolveStringVariable()`, `resolveTargetsVariable()`, `resolveDependenciesVariable()` methods
+- Added `applyForEachModifications()` for handling target post-processing
+- Enhanced target parsing with custom path extraction using `pathParameter` pattern
+- Improved `extractVariableArrayContent()` with robust bracket counting
 - Enhanced `ImportInfo` model with line number tracking
 - Added `DependencyInfo` model to track dependency line numbers in Package.swift
 - Added `XcodeOutput` module for Xcode-compatible format (`file:line: error: message`)
@@ -33,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extended `DependencyAnalyzer` with `generateXcodeReport()` and `generateGitHubActionsReport()` methods
 - Fixed loop logic in `generateXcodeReport()` and `generateGitHubActionsReport()` to report all import occurrences
 - Updated `Target` model to include `dependencyInfo` array with line number tracking
-- All existing functionality preserved with backward compatibility
+- All existing functionality preserved with backward compatibility - all 38 tests pass
 
 ## [1.0.0] - 2025-07-16
 

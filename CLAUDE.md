@@ -145,3 +145,7 @@ See PROJECT_PLAN.md for detailed implementation phases and technical specificati
 ## Development Practices
 
 - Always describe coherent, completed changes in the CHANGELOG, and update the README when changes affect what is documented there
+
+## Swift Development Best Practices
+
+- Use the RegexBuilder by default when designing regular expressions.
