@@ -66,8 +66,7 @@ build_linux_x86_64:
 		swift:6.1 \
 		bash -c " \
 			swift build $(SWIFT_BUILD_FLAGS) --triple x86_64-unknown-linux-gnu && \
-			strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) && \
-			chown -R $$(stat -c '%u:%g' /workspace) /workspace/.build/ \
+			strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
 		"
 	@echo "✅ Linux x86_64 binary built at $(LINUX_X86_64_BUILD_DIR)/$(EXECUTABLE_NAME)"
 
@@ -86,8 +85,7 @@ build_linux_aarch64:
 			apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \
 			echo 'Cross-compiling for ARM64...' && \
 			swift build $(SWIFT_BUILD_FLAGS) --triple aarch64-unknown-linux-gnu -Xcc -target -Xcc aarch64-unknown-linux-gnu && \
-			aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) && \
-			chown -R $$(stat -c '%u:%g' /workspace) /workspace/.build/ \
+			aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
 		"
 	@echo "✅ Linux ARM64 binary built at $(LINUX_AARCH64_BUILD_DIR)/$(EXECUTABLE_NAME)"
 

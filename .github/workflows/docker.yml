@@ -76,8 +76,6 @@ jobs:
                 swift build -c release --triple x86_64-unknown-linux-gnu -Xswiftc -Osize && \
                 echo 'Stripping binary for size optimization...' && \
                 strip .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit && \
-                echo 'Fixing file permissions...' && \
-                chown -R $(stat -c '%u:%g' /workspace) /workspace/.build/ && \
                 echo 'Build completed successfully for x86_64'
               "
           else
@@ -100,8 +98,6 @@ jobs:
                 swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu && \
                 echo 'Stripping binary with cross-compilation tools...' && \
                 aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit && \
-                echo 'Fixing file permissions...' && \
-                chown -R $(stat -c '%u:%g' /workspace) /workspace/.build/ && \
                 echo 'Build completed successfully for aarch64'
               "
           fi
