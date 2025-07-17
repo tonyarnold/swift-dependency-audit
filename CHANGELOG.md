@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tool exits with code 0 when only warnings are present (no missing or unused dependencies)
   - Improved CI compatibility by treating redundant dependencies as non-blocking warnings
 
+### Enhanced
+- **Redundant Dependency Reporting**
+  - Enhanced redundant dependency warnings to show which specific product dependency provides each redundant direct dependency
+  - Updated output format: `• TargetName (available through ProductName from PackageName)`
+  - Enhanced JSON output to include detailed product/package attribution for redundant dependencies
+  - Improved actionability of redundant dependency warnings with complete provenance information
+
 - **Package.swift Parser Robustness**
   - Fixed parsing failures with complex Package.swift files using variable declarations
   - Enhanced bracket counting for nested array structures in variable assignments

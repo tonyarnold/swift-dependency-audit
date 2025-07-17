@@ -212,7 +212,7 @@ struct ProductDependencyTests {
         )
         
         // StringUtils should be detected as redundant since it's covered by CoreUtilities
-        #expect(result.redundantDirectDependencies.contains("StringUtils"))
+        #expect(result.redundantDirectDependencies.contains { $0.targetName == "StringUtils" })
         
         // StringUtils should be detected as product-satisfied
         #expect(result.productSatisfiedDependencies.count == 1)

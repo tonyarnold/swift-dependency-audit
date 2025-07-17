@@ -139,13 +139,25 @@ public struct ProductSatisfiedDependency: Sendable {
     }
 }
 
+public struct RedundantDirectDependency: Sendable {
+    public let targetName: String
+    public let providingProduct: String
+    public let packageName: String
+    
+    public init(targetName: String, providingProduct: String, packageName: String) {
+        self.targetName = targetName
+        self.providingProduct = providingProduct
+        self.packageName = packageName
+    }
+}
+
 public struct AnalysisResult: Sendable {
     public let target: Target
     public let missingDependencies: Set<String>
     public let unusedDependencies: Set<String>
     public let correctDependencies: Set<String>
     public let productSatisfiedDependencies: [ProductSatisfiedDependency]
-    public let redundantDirectDependencies: Set<String>
+    public let redundantDirectDependencies: [RedundantDirectDependency]
     public let sourceFiles: [SourceFile]
     
     public var hasIssues: Bool {
@@ -156,7 +168,7 @@ public struct AnalysisResult: Sendable {
         !redundantDirectDependencies.isEmpty
     }
     
-    public init(target: Target, missingDependencies: Set<String>, unusedDependencies: Set<String>, correctDependencies: Set<String>, productSatisfiedDependencies: [ProductSatisfiedDependency] = [], redundantDirectDependencies: Set<String> = [], sourceFiles: [SourceFile]) {
+    public init(target: Target, missingDependencies: Set<String>, unusedDependencies: Set<String>, correctDependencies: Set<String>, productSatisfiedDependencies: [ProductSatisfiedDependency] = [], redundantDirectDependencies: [RedundantDirectDependency] = [], sourceFiles: [SourceFile]) {
         self.target = target
         self.missingDependencies = missingDependencies
         self.unusedDependencies = unusedDependencies
@@ -182,7 +194,7 @@ public struct PackageAnalysis: Sendable, Codable {
         public let unusedDependencies: [String]
         public let correctDependencies: [String]
         public let productSatisfiedDependencies: [ProductSatisfiedDependencyInfo]
-        public let redundantDirectDependencies: [String]
+        public let redundantDirectDependencies: [RedundantDirectDependencyInfo]
         
         public init(from result: AnalysisResult) {
             self.name = result.target.name
@@ -190,7 +202,7 @@ public struct PackageAnalysis: Sendable, Codable {
             self.unusedDependencies = Array(result.unusedDependencies).sorted()
             self.correctDependencies = Array(result.correctDependencies).sorted()
             self.productSatisfiedDependencies = result.productSatisfiedDependencies.map { ProductSatisfiedDependencyInfo(from: $0) }.sorted { $0.importName < $1.importName }
-            self.redundantDirectDependencies = Array(result.redundantDirectDependencies).sorted()
+            self.redundantDirectDependencies = result.redundantDirectDependencies.map { RedundantDirectDependencyInfo(from: $0) }.sorted { $0.targetName < $1.targetName }
         }
     }
     
@@ -202,6 +214,18 @@ public struct PackageAnalysis: Sendable, Codable {
         public init(from dependency: ProductSatisfiedDependency) {
             self.importName = dependency.importName
             self.productName = dependency.productName
+            self.packageName = dependency.packageName
+        }
+    }
+    
+    public struct RedundantDirectDependencyInfo: Sendable, Codable {
+        public let targetName: String
+        public let providingProduct: String
+        public let packageName: String
+        
+        public init(from dependency: RedundantDirectDependency) {
+            self.targetName = dependency.targetName
+            self.providingProduct = dependency.providingProduct
             self.packageName = dependency.packageName
         }
     }

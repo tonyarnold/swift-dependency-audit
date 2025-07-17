@@ -87,14 +87,29 @@ public actor DependencyAnalyzer {
         // Find which imports are satisfied by products
         var productSatisfiedDependencies: [ProductSatisfiedDependency] = []
         var productSatisfiedImports = Set<String>()
-        var redundantDirectDependencies = Set<String>()
+        var redundantDirectDependencies: [RedundantDirectDependency] = []
         
         // Check for redundant direct dependencies - targets that are also covered by products
         for declaredDep in declaredDependencies {
             if let targets = productToTargetMapping[declaredDep] {
                 // Check if any of these targets are also directly declared
                 let redundantTargets = Set(targets).intersection(declaredDependencies)
-                redundantDirectDependencies.formUnion(redundantTargets)
+                
+                // Find the package that provides this product
+                if let package = externalPackages.first(where: { pkg in
+                    pkg.products.contains { $0.name == declaredDep }
+                }) {
+                    // Create detailed redundant dependency entries
+                    for redundantTarget in redundantTargets {
+                        redundantDirectDependencies.append(
+                            RedundantDirectDependency(
+                                targetName: redundantTarget,
+                                providingProduct: declaredDep,
+                                packageName: package.name
+                            )
+                        )
+                    }
+                }
             }
         }
         
@@ -136,7 +151,8 @@ public actor DependencyAnalyzer {
             .subtracting(internalModules)
         
         // For unused dependencies, exclude redundant direct dependencies (those covered by products)
-        let nonRedundantDeclaredDependencies = declaredDependencies.subtracting(redundantDirectDependencies)
+        let redundantTargetNames = Set(redundantDirectDependencies.map { $0.targetName })
+        let nonRedundantDeclaredDependencies = declaredDependencies.subtracting(redundantTargetNames)
         let unusedDependencies = nonRedundantDeclaredDependencies.subtracting(allImports)
         
         let correctDependencies = nonRedundantDeclaredDependencies.intersection(allImports)
@@ -266,9 +282,11 @@ public actor DependencyAnalyzer {
         if !result.redundantDirectDependencies.isEmpty {
             let warningMessage = ColorOutput.warning("Redundant direct dependencies (\(result.redundantDirectDependencies.count)):")
             output.append("  " + warningMessage)
-            for dep in result.redundantDirectDependencies.sorted() {
-                let depName = ColorOutput.dependencyName(dep)
-                output.append("    • \(depName) (available through product dependency)")
+            for dep in result.redundantDirectDependencies.sorted(by: { $0.targetName < $1.targetName }) {
+                let targetName = ColorOutput.dependencyName(dep.targetName)
+                let productName = ColorOutput.dependencyName(dep.providingProduct)
+                let packageName = ColorOutput.dim(dep.packageName)
+                output.append("    • \(targetName) (available through \(productName) from \(packageName))")
             }
         }
         
