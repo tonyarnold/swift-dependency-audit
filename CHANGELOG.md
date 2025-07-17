@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Swift Build Tool Plugin Integration**
+  - Automatic dependency validation during builds with Swift Package Manager build tool plugin
+  - Zero-configuration integration - works automatically when applied to package targets
+  - Seamless Xcode integration with native build system error and warning reporting
+  - Target-specific analysis validates dependencies for each target individually
+  - Prebuild command execution ensures validation before compilation begins
+  - IDE-friendly output with Xcode-compatible error messages and navigation
+  - Support for both Swift Package Manager command-line builds and Xcode workspace builds
+  - Plugin automatically excludes test dependencies when analyzing non-test targets
+  - Operates in quiet mode by default to focus on dependency issues during builds
 - **Product-Level Dependency Detection**
   - Analyzes external package products from `.build/checkouts` directory after `swift resolve`
   - Detects imports satisfied by product dependencies to prevent false "missing dependency" reports
@@ -68,6 +78,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced dependency parsing to capture exact line numbers where dependencies are declared
 
 ### Technical Details
+- **Swift Build Tool Plugin Architecture**
+  - Added `DependencyAuditPlugin` conforming to `BuildToolPlugin` protocol with `@main` annotation
+  - Implemented `createBuildCommands(context:target:)` method for prebuild command generation
+  - Plugin executes `swift run swift-dependency-audit` with target-specific arguments
+  - Uses modern PackagePlugin API with `pluginWorkDirectoryURL` and `directoryURL` properties
+  - Target filtering logic analyzes all targets and lets the tool handle inappropriate target types
+  - Automatic test exclusion for non-test targets via `--exclude-tests` flag
+  - Xcode-compatible output format via `--output-format xcode` for seamless IDE integration
+  - Quiet mode operation via `--quiet` flag to focus on issues during builds
+  - Plugin target definition in Package.swift with `.buildTool()` capability
+
 - **Product-Level Dependency Analysis**
   - Added `Product`, `ExternalPackage`, `ExternalPackageDependency`, and `ProductSatisfiedDependency` models
   - New `ExternalPackageResolver` actor for discovering and parsing external packages from `.build/checkouts`

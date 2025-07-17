@@ -11,7 +11,8 @@ let package = Package(
         .watchOS(.v11),
     ],
     products: [
-        .executable(name: "swift-dependency-audit", targets: ["SwiftDependencyAudit"])
+        .executable(name: "swift-dependency-audit", targets: ["SwiftDependencyAudit"]),
+        .plugin(name: "DependencyAuditPlugin", targets: ["DependencyAuditPlugin"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.1")
@@ -30,6 +31,10 @@ let package = Package(
         .testTarget(
             name: "SwiftDependencyAuditTests",
             dependencies: ["SwiftDependencyAuditLib"]
+        ),
+        .plugin(
+            name: "DependencyAuditPlugin",
+            capability: .buildTool()
         ),
     ]
 )
