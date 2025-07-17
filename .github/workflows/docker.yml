@@ -73,7 +73,7 @@ jobs:
                 echo 'Resolving dependencies...' && \
                 swift package resolve && \
                 echo 'Building release binary...' && \
-                swift build -c release --triple x86_64-unknown-linux-gnu -Xswiftc -Osize && \
+                swift build -c release --triple x86_64-unknown-linux-gnu -Xswiftc -Osize --static-swift-stdlib && \
                 echo 'Stripping binary for size optimization...' && \
                 strip .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit && \
                 echo 'Build completed successfully for x86_64'
@@ -95,7 +95,7 @@ jobs:
                 echo 'Resolving dependencies...' && \
                 swift package resolve && \
                 echo 'Building release binary with cross-compilation...' && \
-                swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu && \
+                swift build -c release --triple aarch64-unknown-linux-gnu -Xswiftc -Osize -Xcc -target -Xcc aarch64-unknown-linux-gnu --static-swift-stdlib && \
                 echo 'Stripping binary with cross-compilation tools...' && \
                 aarch64-linux-gnu-strip .build/aarch64-unknown-linux-gnu/release/swift-dependency-audit && \
                 echo 'Build completed successfully for aarch64'
@@ -112,10 +112,11 @@ jobs:
       - name: Test binary functionality (x86_64 only)
         if: matrix.arch == 'x86_64'
         run: |
-          # Only test x86_64 binaries since we're running on x86_64
-          echo "Testing binary functionality..."
-          .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --version
-          .build/${{ matrix.arch }}-unknown-linux-gnu/release/swift-dependency-audit --help
+          # Test static binary (should work without Swift runtime libraries)
+          echo "Testing static binary functionality..."
+          .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit --version
+          .build/x86_64-unknown-linux-gnu/release/swift-dependency-audit --help
+          echo "✅ Static binary functionality tests passed"
 
 
       - name: Upload Linux binary artifacts
