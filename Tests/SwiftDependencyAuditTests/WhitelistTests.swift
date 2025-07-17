@@ -164,15 +164,16 @@ struct WhitelistTests {
         import NotInWhitelist
         """
         
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = Date()
         let imports = await scanner.scanContent(content, customWhitelist: whitelist)
-        let endTime = CFAbsoluteTimeGetCurrent()
+        let endTime = Date()
         
         #expect(imports.count == 1)
         #expect(imports.first?.moduleName == "NotInWhitelist")
         
         // Performance should be reasonable (under 100ms for this test)
-        #expect((endTime - startTime) < 0.1)
+        let duration = endTime.timeIntervalSince(startTime)
+        #expect(duration < 0.1)
     }
     
     private func createTestPackage(sourceFiles: [String: String]) throws -> URL {
