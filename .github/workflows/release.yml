@@ -93,10 +93,74 @@ jobs:
           
   build-linux:
     name: Build Linux Binaries
-    uses: ./.github/workflows/linux.yml
-    with:
-      upload_artifacts: true
-      artifact_retention_days: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            triple: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Swift
+        run: |
+          # Check if Swift is already available
+          if command -v swift >/dev/null 2>&1; then
+            echo "Swift is already available:"
+            swift --version
+          else
+            echo "Installing Swift using Swiftly..."
+            
+            # Install Swiftly
+            curl -L https://swift-server.github.io/swiftly/swiftly-install.sh | bash
+            
+            # Add Swiftly to PATH for current session
+            export PATH="$HOME/.local/bin:$PATH"
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+            
+            # Install latest Swift toolchain
+            swiftly install latest
+            swiftly use latest
+            
+            echo "Swift installation completed:"
+            swift --version
+          fi
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+          key: ${{ runner.os }}-${{ matrix.arch }}-spm-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-spm-
+            ${{ runner.os }}-spm-
+
+      - name: Build optimized static binary
+        run: |
+          echo "Building static Linux binary for ${{ matrix.arch }}..."
+          swift package resolve
+          swift build -c release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
+          strip .build/${{ matrix.triple }}/release/swift-dependency-audit
+          
+          # Verify binary
+          ls -la .build/${{ matrix.triple }}/release/swift-dependency-audit
+          file .build/${{ matrix.triple }}/release/swift-dependency-audit
+          .build/${{ matrix.triple }}/release/swift-dependency-audit --version
+
+      - name: Upload Linux binary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-binary
+          path: .build/${{ matrix.triple }}/release/swift-dependency-audit
+          retention-days: 30
           
   create-release:
     runs-on: ubuntu-latest
