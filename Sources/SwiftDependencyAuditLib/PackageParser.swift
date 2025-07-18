@@ -794,88 +794,65 @@ public actor PackageParser {
     private func findDependencyLineNumber(dependency: String, targetName: String, in content: String) -> Int? {
         let lines = content.components(separatedBy: .newlines)
         
-        // Find the specific target declaration first
-        var targetStartLine: Int?
-        var targetEndLine: Int?
-        var braceDepth = 0
-        var foundTargetDeclaration = false
+        // Find the target by name first, then look for dependencies within reasonable distance
+        var targetNameLine: Int?
         
+        // First pass: find the line with our target name declaration
         for (index, line) in lines.enumerated() {
-            // Look for target declaration with our target name
-            if line.contains(".target(") || line.contains(".executableTarget(") || line.contains(".testTarget(") {
-                // Check if this target block contains our target name
-                var checkIndex = index
-                var targetFound = false
-                var tempBraceDepth = 0
-                
-                // Look ahead in the next several lines to find the target name
-                while checkIndex < lines.count && checkIndex < index + 10 {
-                    let checkLine = lines[checkIndex]
-                    
-                    // Count braces to track target boundaries
-                    for char in checkLine {
-                        if char == "(" { tempBraceDepth += 1 }
-                        else if char == ")" { tempBraceDepth -= 1 }
-                    }
-                    
-                    // Check if this line contains our target name
-                    if checkLine.contains("name: \"\(targetName)\"") {
-                        targetFound = true
-                        targetStartLine = index
-                        braceDepth = tempBraceDepth
-                        foundTargetDeclaration = true
+            if line.contains("name: \"\(targetName)\"") {
+                // Verify this is actually a target declaration by checking the previous line
+                if index > 0 {
+                    let previousLine = lines[index - 1]
+                    if previousLine.contains(".target(") || previousLine.contains(".executableTarget(") || previousLine.contains(".testTarget(") {
+                        targetNameLine = index
                         break
                     }
-                    
-                    // If we've closed all braces, we've gone past this target
-                    if tempBraceDepth <= 0 && checkIndex > index {
-                        break
-                    }
-                    
-                    checkIndex += 1
-                }
-                
-                if targetFound {
-                    break
                 }
             }
         }
         
-        // If we found the target, find where it ends
-        if let startLine = targetStartLine, foundTargetDeclaration {
-            for (index, line) in lines.enumerated() {
-                if index <= startLine { continue }
-                
-                for char in line {
-                    if char == "(" { braceDepth += 1 }
-                    else if char == ")" { 
-                        braceDepth -= 1
-                        if braceDepth <= 0 {
-                            targetEndLine = index
-                            break
-                        }
-                    }
-                }
-                
-                if targetEndLine != nil {
-                    break
-                }
-            }
-        }
-        
-        // Now search for the dependency within the target boundaries
-        if let startLine = targetStartLine, let endLine = targetEndLine {
-            for lineIndex in startLine..<endLine {
-                if lineIndex >= lines.count { break }
+        // If we found the target name, look for dependencies in the following lines
+        if let targetLine = targetNameLine {
+            // Search in a reasonable range after the target name (usually within 50 lines)
+            let searchStart = targetLine
+            let searchEnd = min(lines.count, targetLine + 50)
+            
+            for lineIndex in searchStart..<searchEnd {
                 let line = lines[lineIndex]
                 
                 // Look for .product(name: "DependencyName") format
                 if line.contains("name: \"\(dependency)\"") && line.contains(".product") {
                     return lineIndex + 1
                 }
-                // Look for simple quoted format "DependencyName"
-                else if line.contains("\"\(dependency)\"") && !line.contains("name:") && line.contains("target") {
+                // Look for simple quoted format "DependencyName" within target references
+                else if line.contains("\"\(dependency)\"") && line.contains(".target") {
                     return lineIndex + 1
+                }
+                
+                // Stop if we hit another target declaration (indicates we've gone too far)
+                if lineIndex > targetLine && (line.contains(".target(") || line.contains(".executableTarget(") || line.contains(".testTarget(")) {
+                    break
+                }
+            }
+        }
+        
+        // Fallback: search for the dependency near the target name (broader search)
+        for (index, line) in lines.enumerated() {
+            if line.contains("name: \"\(targetName)\"") {
+                // Search within 50 lines after this target name mention
+                let searchStart = index
+                let searchEnd = min(lines.count, index + 50)
+                
+                for lineIndex in searchStart..<searchEnd {
+                    let searchLine = lines[lineIndex]
+                    if searchLine.contains("name: \"\(dependency)\"") && searchLine.contains(".product") {
+                        return lineIndex + 1
+                    }
+                    
+                    // Stop if we hit another target name (different target)
+                    if lineIndex > index && searchLine.contains("name: \"") && !searchLine.contains("name: \"\(targetName)\"") && (searchLine.contains(".target") || searchLine.contains("name: \"\(dependency)\"")) {
+                        break
+                    }
                 }
             }
         }
