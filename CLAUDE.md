@@ -110,7 +110,7 @@ swift run swift-dependency-audit /path/to/package
 swift run swift-dependency-audit --whitelist "Foundation,SwiftUI,AppKit,UIKit"
 
 # Options
-swift run swift-dependency-audit --no-color --verbose --json
+swift run swift-dependency-audit --no-color --verbose --output-format json
 swift run swift-dependency-audit --target MyTarget --exclude-tests
 ```
 
@@ -136,7 +136,7 @@ All core features have been implemented and tested:
 ```bash
 swift run swift-dependency-audit --help
 swift run swift-dependency-audit /path/to/package
-swift run swift-dependency-audit --verbose --json
+swift run swift-dependency-audit --verbose --output-format json
 swift run swift-dependency-audit --whitelist "Foundation,SwiftUI,AppKit"
 ```
 

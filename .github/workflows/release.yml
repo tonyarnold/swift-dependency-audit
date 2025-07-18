@@ -133,7 +133,7 @@ jobs:
           $BINARY_PATH . --verbose --exclude-tests
 
           echo "=== Testing JSON Output ==="
-          $BINARY_PATH . --json --no-color --exclude-tests > output.json
+          $BINARY_PATH . --output-format json --no-color --exclude-tests > output.json
           cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
           echo "✅ JSON output is valid"
 

@@ -45,24 +45,21 @@ swift run swift-dependency-audit /path/to/package
 ### Command Line Options
 
 ```
-USAGE: swift-dependency-audit [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--json] [--quiet] [--whitelist <whitelist>] [--output-format <output-format>]
+USAGE: swift-dependency-audit [<path>] [--no-color] [--verbose] [--target <target>] [--exclude-tests] [--quiet] [--whitelist <whitelist>] [--output-format <output-format>]
 
 ARGUMENTS:
-  <path>                  Path to Package.swift or package directory (default: current directory)
+  <path>                    Path to Package.swift or package directory (default: current directory)
 
 OPTIONS:
-  --no-color              Disable colored output
-  -v, --verbose           Enable verbose output
-  --target <target>       Analyze specific target only
-  --exclude-tests         Skip test targets
-  --json                  Output results in JSON format
-  -q, --quiet             Only show problems, suppress success messages
-  --whitelist <whitelist> Comma-separated list of system imports to ignore
-                          (e.g., Foundation,SwiftUI,AppKit)
-  --output-format <format> Output format: default, xcode, or github-actions
-                          (default: default)
-  --version               Show the version.
-  -h, --help              Show help information.
+  --no-color                Disable colored output
+  -v, --verbose             Enable verbose output
+  --target <target>         Analyze specific target only
+  --exclude-tests           Skip test targets
+  -q, --quiet               Only show problems, suppress success messages
+  --whitelist <whitelist>   Comma-separated list of system imports to ignore (e.g., Foundation,SwiftUI,AppKit)
+  --output-format <format>  Output format: terminal, json, xcode, or github-actions (default: terminal)
+  --version                 Show the version.
+  -h, --help                Show help information.
 ```
 
 ### Examples
@@ -72,7 +69,7 @@ OPTIONS:
 swift run swift-dependency-audit --verbose --whitelist "Foundation,SwiftUI,AppKit,UIKit"
 
 # JSON output for CI/automation
-swift run swift-dependency-audit --json --no-color
+swift run swift-dependency-audit --output-format json --no-color
 
 # Analyze only a specific target
 swift run swift-dependency-audit --target MyLibrary
