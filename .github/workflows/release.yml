@@ -211,7 +211,7 @@ jobs:
           if ! ./Scripts/spm-artifact-bundle.sh "$VERSION"; then
             echo "❌ Artifact bundle creation failed"
             echo "=== Debug: Checking directory structure ==="
-            find .build -type f -name "swift-dependency-audit" -print -exec ls -la {} \; || echo "No binaries found"
+            find .build -type f -name "swift-dependency-audit" -exec ls -la {} \; || echo "No binaries found"
             exit 1
           fi
 

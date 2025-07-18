@@ -6,6 +6,8 @@
 
 set -euox pipefail
 
+trap 'echo "❌ Error on line $LINENO: $BASH_COMMAND" >&2' ERR
+
 # Configuration
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TOOL_NAME="swift-dependency-audit"
