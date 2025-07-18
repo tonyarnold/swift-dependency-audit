@@ -124,64 +124,6 @@ let package = Package(
 )
 ```
 
-### Hybrid Binary/Source Approach
-
-Following the proven pattern from SwiftLint, SwiftDependencyAudit uses:
-
-- **macOS**: Pre-compiled binary targets for optimal performance
-- **Other Platforms**: Source compilation for maximum compatibility
-
-This approach provides:
-
-- **Performance**: Binary targets eliminate compilation time on macOS
-- **Compatibility**: Source compilation works on all Swift-supported platforms
-- **Development**: Easy debugging and contribution with source access
-- **Production**: Optimized performance where it matters most
-
-### Binary Target Distribution
-
-SwiftDependencyAudit provides pre-compiled binary targets for:
-
-- **macOS**: Universal binary supporting both ARM64 (Apple Silicon) and x86_64 (Intel)
-- **Cross-platform**: Artifact bundles compatible with Swift Package Manager
-
-Binary targets provide significant performance improvements over source compilation, especially in CI/CD environments and large projects, while maintaining full compatibility across all platforms.
-
-### Plugin Features
-
-- **Automatic Execution**: Runs dependency validation before every build
-- **Target-Specific Analysis**: Validates dependencies for each target individually
-- **Xcode Integration**: Seamless integration with Xcode's build system and error reporting
-- **Zero Configuration**: Works automatically once applied to targets
-- **Build Performance**: Uses prebuild commands to validate before compilation begins
-- **IDE-Friendly Output**: Generates Xcode-compatible error and warning messages
-
-### Plugin Benefits
-
-- **Early Detection**: Catches dependency issues before compilation
-- **Developer Workflow**: Immediate feedback in Xcode and command-line builds
-- **CI/CD Ready**: Automatic validation in continuous integration environments
-- **No Manual Steps**: Eliminates need to manually run dependency audits
-- **Build Integration**: Leverages Swift Package Manager's plugin architecture
-
-### Plugin Behavior
-
-The build tool plugin:
-1. Runs before each target compilation
-2. Analyzes the specific target being built
-3. Uses Xcode-compatible output format for IDE integration
-4. Excludes test dependencies when analyzing non-test targets
-5. Operates in quiet mode to focus on issues
-6. Integrates with Xcode's build log and error reporting
-
-### Xcode Integration
-
-When using the plugin in Xcode:
-- Dependency issues appear as build errors and warnings
-- Click on errors to navigate directly to the problematic import
-- Warnings for unused dependencies link to Package.swift
-- Full integration with Xcode's issue navigator
-- Works with both workspace and package projects
 
 ## Sample Output
 
@@ -272,7 +214,6 @@ Creates rich annotations in CI/CD workflows:
 
 - Swift 6.1+
 - macOS 15+
-- Xcode 16.4+ (for development)
 
 ## Development
 
