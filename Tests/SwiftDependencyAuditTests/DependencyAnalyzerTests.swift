@@ -83,7 +83,8 @@ struct DependencyAnalyzerTests {
         #expect(result.unusedDependencies.contains("UnusedLibrary"))
         #expect(result.correctDependencies.isEmpty)
         #expect(result.missingDependencies.isEmpty)
-        #expect(result.hasIssues)
+        #expect(!result.hasIssues)
+        #expect(result.hasWarnings)
     }
     
     @Test("Analyze multiple files with mixed dependencies")
