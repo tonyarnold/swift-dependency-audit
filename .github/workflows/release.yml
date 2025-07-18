@@ -193,6 +193,8 @@ jobs:
 
       - name: Create artifact bundle using scripts
         run: |
+          set -euox pipefail
+
           # Get version from git tag or manual input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.tag_name }}"
@@ -202,9 +204,9 @@ jobs:
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           echo "Creating artifact bundle for version $VERSION using scripts"
 
-          # Create artifact bundle using existing binaries (skip rebuild)  
+          # Create artifact bundle using existing binaries (skip rebuild)
           chmod +x Scripts/spm-artifact-bundle.sh
-          
+
           # Run script with error handling for missing Linux binaries
           if ! ./Scripts/spm-artifact-bundle.sh "$VERSION"; then
             echo "❌ Artifact bundle creation failed"
