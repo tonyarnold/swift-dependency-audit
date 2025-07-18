@@ -2,17 +2,13 @@
 import PackageDescription
 
 // Conditional plugin dependencies based on platform
-// Note: Using source target for development until binary target is available
-let swiftDependencyAuditPluginDependencies: [Target.Dependency] = [.target(name: "SwiftDependencyAudit")]
+let swiftDependencyAuditPluginDependencies: [Target.Dependency]
 
-// For production with binary target, use this instead:
-/*
 #if os(macOS)
 swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAuditBinary")]
 #else
 swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
 #endif
-*/
 
 let package = Package(
     name: "SwiftDependencyAudit",
@@ -54,15 +50,12 @@ let package = Package(
 )
 
 // Conditionally add binary target only on macOS
-// Note: Commented out for development until first release with binary target is created
-/*
 #if os(macOS)
 package.targets.append(
     .binaryTarget(
         name: "SwiftDependencyAuditBinary",
-        url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/v0.1.0-test/swift-dependency-audit.artifactbundle.zip",
-        checksum: "b7bf85dc914055edac980164ba7424c4d7b6f174ef5b85a95d4d3ba543ca04f6"
+        url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/v1.4.2/swift-dependency-audit.artifactbundle.zip",
+        checksum: "4e39733d4aa15a58bc164467b27e71d99f8c4828ab8a39566bea4fded138be47"
     )
 )
 #endif
-*/
