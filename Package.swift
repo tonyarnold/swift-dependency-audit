@@ -17,11 +17,11 @@ swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
 let package = Package(
     name: "SwiftDependencyAudit",
     platforms: [
-        .macOS(.v15),
-        .macCatalyst(.v18),
-        .iOS(.v18),
-        .tvOS(.v18),
-        .watchOS(.v11),
+        .macOS(.v13),
+        .macCatalyst(.v16),
+        .iOS(.v16),
+        .tvOS(.v16),
+        .watchOS(.v9),
     ],
     products: [
         .executable(name: "swift-dependency-audit", targets: ["SwiftDependencyAudit"]),
