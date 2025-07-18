@@ -169,11 +169,10 @@ main() {
     local binaries_created=0
 
     # Create macOS universal binary
-    log_info "Copying macOS binary into artifact bundle"
     local macos_path=".build/apple/Products/Release/swift-dependency-audit"
     if [[ -f "$macos_path" ]]; then
         if create_platform_binary "macos" "$macos_path" "swift-dependency-audit" "$clean_version"; then
-            ((binaries_created++))
+            binaries_created=$((binaries_created + 1))
         else
             log_warning "Failed to create macOS binary bundle"
         fi
@@ -182,11 +181,10 @@ main() {
     fi
 
     # Create Linux x86_64 binary
-    log_info "Copying Linux x86_64 binary into artifact bundle"
     local linux_x86_path=".build/x86_64-unknown-linux-gnu/release/swift-dependency-audit"
     if [[ -f "$linux_x86_path" ]]; then
         if create_platform_binary "x86_64-unknown-linux-gnu" "$linux_x86_path" "swift-dependency-audit" "$clean_version"; then
-            ((binaries_created++))
+            binaries_created=$((binaries_created + 1))
         else
             log_warning "Failed to create Linux x86_64 binary bundle"
         fi
@@ -195,11 +193,10 @@ main() {
     fi
 
     # Create Linux ARM64 binary
-    log_info "Copying Linux ARM64 binary into artifact bundle"
     local linux_arm_path=".build/aarch64-unknown-linux-gnu/release/swift-dependency-audit"
     if [[ -f "$linux_arm_path" ]]; then
         if create_platform_binary "aarch64-unknown-linux-gnu" "$linux_arm_path" "swift-dependency-audit" "$clean_version"; then
-            ((binaries_created++))
+            binaries_created=$((binaries_created + 1))
         else
             log_warning "Failed to create Linux aarch64 binary bundle"
         fi
