@@ -168,11 +168,11 @@ public struct AnalysisResult: Sendable {
     public let sourceFiles: [SourceFile]
     
     public var hasIssues: Bool {
-        !missingDependencies.isEmpty || !unusedDependencies.isEmpty
+        !missingDependencies.isEmpty
     }
     
     public var hasWarnings: Bool {
-        !redundantDirectDependencies.isEmpty
+        !redundantDirectDependencies.isEmpty || !unusedDependencies.isEmpty
     }
     
     public init(target: Target, missingDependencies: Set<String>, unusedDependencies: Set<String>, correctDependencies: Set<String>, productSatisfiedDependencies: [ProductSatisfiedDependency] = [], redundantDirectDependencies: [RedundantDirectDependency] = [], sourceFiles: [SourceFile]) {
