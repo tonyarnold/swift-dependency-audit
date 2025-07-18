@@ -170,27 +170,15 @@ main() {
     local binaries_created=0
 
     # Create macOS universal binary
-    local macos_paths=(
-        ".build/apple/Products/Release/swift-dependency-audit"
-        ".build/release/swift-dependency-audit"
-    )
-
-    local macos_found=false
-    for path in "${macos_paths[@]}"; do
-        if [[ -f "$path" ]]; then
-            if create_platform_binary "macos" "$path" "swift-dependency-audit" "$clean_version"; then
-                ((binaries_created++))
-                macos_found=true
-                break
-            fi
+    local macos_path=".build/apple/Products/Release/swift-dependency-audit"
+    if [[ -f "$macos_path" ]]; then
+        if create_platform_binary "macos" "$macos_path" "swift-dependency-audit" "$clean_version"; then
+            ((binaries_created++))
+        else
+            log_warning "Failed to create macOS binary bundle"
         fi
-    done
-
-    if [[ "$macos_found" == false ]]; then
-        log_error "macOS binary not found. Please build first with:"
-        log_error "  swift build -c release --arch arm64 --arch x86_64"
-        log_error "Or try: make build_macos"
-        exit 1
+    else
+        log_warning "macOS binary not found: $macos_path"
     fi
 
     # Create Linux x86_64 binary
