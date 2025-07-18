@@ -50,7 +50,8 @@ private func getGitVersion() -> String? {
 }
 
 public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
-    case `default` = "default"
+    case terminal = "terminal"
+    case json = "json"
     case xcode = "xcode"
     case githubActions = "github-actions"
 }
@@ -84,8 +85,6 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
     @Flag(name: .long, help: "Skip test targets")
     public var excludeTests = false
 
-    @Flag(name: .long, help: "Output results in JSON format")
-    public var json = false
 
     @Flag(name: [.short, .long], help: "Only show problems, suppress success messages")
     public var quiet = false
@@ -97,8 +96,8 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
 
     @Option(
         name: .long,
-        help: "Output format: default, xcode, or github-actions")
-    public var outputFormat: OutputFormat = .default
+        help: "Output format: terminal, json, xcode, or github-actions")
+    public var outputFormat: OutputFormat = .terminal
 
     public func run() async throws {
         // Configure color output
@@ -114,7 +113,7 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
             let analyzer = DependencyAnalyzer()
             let processor = ParallelProcessor()
 
-            if verbose && !json {
+            if verbose && outputFormat != .json {
                 let message = ColorOutput.info("Parsing package at: \(path)")
                 print(message)
             }
@@ -122,7 +121,7 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
             // Parse package
             let packageInfo = try await parser.parsePackage(at: path)
 
-            if verbose && !json {
+            if verbose && outputFormat != .json {
                 let message = ColorOutput.info(
                     "Found \(packageInfo.targets.count) target(s) in package '\(packageInfo.name)'")
                 print(message)
@@ -144,7 +143,7 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
                 targetsToAnalyze = targetsToAnalyze.filter { $0.type != .test }
             }
 
-            if verbose && !json {
+            if verbose && outputFormat != .json {
                 let message = ColorOutput.info(
                     "Analyzing \(targetsToAnalyze.count) target(s)")
                 print(message)
@@ -156,26 +155,25 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
                 customWhitelist: customWhitelist)
 
             // Generate and output report
-            if json {
-                let jsonReport = try await analyzer.generateJSONReport(
+            let report: String
+            switch outputFormat {
+            case .terminal:
+                report = await analyzer.generateReport(
+                    for: results, packageName: packageInfo.name, verbose: verbose, quiet: quiet)
+            case .json:
+                report = try await analyzer.generateJSONReport(
                     for: results, packageName: packageInfo.name, quiet: quiet)
-                print(jsonReport)
-            } else {
-                let report: String
-                switch outputFormat {
-                case .default:
-                    report = await analyzer.generateReport(
-                        for: results, packageName: packageInfo.name, verbose: verbose, quiet: quiet)
-                case .xcode:
-                    report = await analyzer.generateXcodeReport(
-                        for: results, packagePath: path)
-                case .githubActions:
-                    report = await analyzer.generateGitHubActionsReport(
-                        for: results, packagePath: path)
-                }
-                print(report)
+            case .xcode:
+                report = await analyzer.generateXcodeReport(
+                    for: results, packagePath: path)
+            case .githubActions:
+                report = await analyzer.generateGitHubActionsReport(
+                    for: results, packagePath: path)
+            }
+            print(report)
 
-                // Exit with error code if issues found
+            // Exit with error code if issues found (except for JSON format)
+            if outputFormat != .json {
                 let hasIssues = results.contains { $0.hasIssues }
                 if hasIssues {
                     throw ExitCode.failure

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CLI Interface Simplification**
+  - Removed redundant `--json` flag in favor of unified `--output-format json` option
+  - Consolidated output format selection into single `--output-format` parameter supporting `terminal`, `json`, `xcode`, and `github-actions`
+  - Renamed `default` output format to `terminal` for better clarity and descriptiveness
+  - Simplified CLI interface with consistent format selection pattern
+
 ### Added
 - **Multi-Platform Binary Target Distribution**
   - Cross-platform artifact bundles for Swift Package Manager with pre-compiled binaries

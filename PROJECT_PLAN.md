@@ -44,10 +44,9 @@ OPTIONS:
   --verbose, -v            Enable verbose output
   --target <name>          Analyze specific target only
   --exclude-tests          Skip test targets
-  --json                   Output results in JSON format
   --quiet, -q              Only show problems, suppress success messages
   --whitelist <list>       Comma-separated list of system imports to ignore (e.g., Foundation,SwiftUI,AppKit)
-  --output-format <format> Output format: default, xcode, or github-actions (default: default)
+  --output-format <format> Output format: terminal, JSON, xcode, or github-actions (default: terminal)
   --help, -h               Show help information
   --version                Show version
 ```
