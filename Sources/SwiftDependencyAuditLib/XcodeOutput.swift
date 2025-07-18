@@ -34,11 +34,11 @@ public struct XcodeOutput {
         )
     }
     
-    public static func unusedDependencyWarning(dependency: String, packageFile: String, line: Int? = nil) -> String {
+    public static func unusedDependencyWarning(dependency: String, targetName: String, packageFile: String, line: Int? = nil) -> String {
         return warning(
             file: packageFile,
             line: line,
-            message: "Unused dependency '\(dependency)' is declared but never imported"
+            message: "Unused dependency '\(dependency)' is declared but never imported into \(targetName) target"
         )
     }
 }

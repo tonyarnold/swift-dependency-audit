@@ -386,6 +386,7 @@ public actor DependencyAnalyzer {
                 let lineNumber = result.target.dependencyInfo.first { $0.name == unusedDep }?.lineNumber
                 let message = XcodeOutput.unusedDependencyWarning(
                     dependency: unusedDep,
+                    targetName: result.target.name,
                     packageFile: packageFile,
                     line: lineNumber
                 )
@@ -423,6 +424,7 @@ public actor DependencyAnalyzer {
                 let lineNumber = result.target.dependencyInfo.first { $0.name == unusedDep }?.lineNumber
                 let message = GitHubActionsOutput.unusedDependencyWarning(
                     dependency: unusedDep,
+                    targetName: result.target.name,
                     packageFile: packageFile,
                     line: lineNumber
                 )
