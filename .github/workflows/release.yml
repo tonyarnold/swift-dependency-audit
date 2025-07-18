@@ -11,112 +11,39 @@ on:
         default: "v1.0.0"
 
 jobs:
-  build-macos:
-    name: Build macOS Universal Binary
-    runs-on: macos-15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
-        
-      - name: Show Swift version
-        run: swift --version
-        
-      - name: Cache Swift Package Manager
-        uses: actions/cache@v4
-        with:
-          path: |
-            .build
-            ~/.cache/org.swift.swiftpm
-          key: ${{ runner.os }}-spm-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-release-
-            ${{ runner.os }}-spm-
-            
-      - name: Resolve dependencies
-        run: swift package resolve
-          
-      - name: Build universal binary with validation
-        run: |
-          # Show version that will be detected
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.tag_name }}"
-          else
-            VERSION=${GITHUB_REF#refs/tags/}
-          fi
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          
-          echo "Building universal macOS binary (version will be detected as: $VERSION)..."
-          swift build -c release --arch arm64 --arch x86_64 -Xswiftc -Osize
-          
-          # Verify the binary was created
-          if [ ! -f ".build/apple/Products/Release/swift-dependency-audit" ]; then
-            echo "❌ Binary not found after build"
-            exit 1
-          fi
-          
-          echo "✅ Binary built successfully"
-          
-      - name: Strip and optimize binary
-        run: |
-          echo "Stripping debug symbols for size optimization..."
-          strip -rSTx .build/apple/Products/Release/swift-dependency-audit
-          
-          # Display binary information
-          echo "Binary information:"
-          ls -la .build/apple/Products/Release/swift-dependency-audit
-          file .build/apple/Products/Release/swift-dependency-audit
-          du -h .build/apple/Products/Release/swift-dependency-audit
-          
-      - name: Comprehensive binary validation
-        run: |
-          echo "=== Validating macOS binary functionality ==="
-          
-          # Test basic commands
-          .build/apple/Products/Release/swift-dependency-audit --version
-          .build/apple/Products/Release/swift-dependency-audit --help
-          
-          echo "=== Testing self-analysis ==="
-          .build/apple/Products/Release/swift-dependency-audit . --verbose --exclude-tests
-          
-          echo "=== Testing JSON output ==="
-          .build/apple/Products/Release/swift-dependency-audit . --json --no-color > test-output.json
-          cat test-output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
-          echo "✅ JSON output validation passed"
-          
-          echo "=== Testing different output formats ==="
-          .build/apple/Products/Release/swift-dependency-audit . --output-format xcode --quiet
-          .build/apple/Products/Release/swift-dependency-audit . --output-format github-actions --quiet
-          
-          echo "✅ All macOS binary validations passed"
-          
-      - name: Upload macOS binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: swift-dependency-audit-macos
-          path: .build/apple/Products/Release/swift-dependency-audit
-          retention-days: 30
-          
-  build-linux:
-    name: Build Linux Binaries
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: x86_64
+          - name: "macOS Universal"
+            runner: macos-15
+            platform: "macOS"
+            xcode: "16.4"
+            arch: "universal"
+          - name: "Linux x86_64"
             runner: ubuntu-latest
-            triple: x86_64-unknown-linux-gnu
-          - arch: aarch64
+            platform: "Linux"
+            arch: "x86_64"
+            triple: "x86_64-unknown-linux-gnu"
+          - name: "Linux ARM64"
             runner: ubuntu-24.04-arm
-            triple: aarch64-unknown-linux-gnu
-    runs-on: ${{ matrix.runner }}
+            platform: "Linux"
+            arch: "aarch64"
+            triple: "aarch64-unknown-linux-gnu"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Setup Swift
+
+      - name: Select Xcode version (macOS only)
+        if: matrix.platform == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+
+      - name: Setup Swift (Linux only)
+        if: matrix.platform == 'Linux'
         run: |
           # Check if Swift is already available
           if command -v swift >/dev/null 2>&1; then
@@ -124,21 +51,24 @@ jobs:
             swift --version
           else
             echo "Installing Swift using Swiftly..."
-            
+
             # Install Swiftly
             curl -L https://swift-server.github.io/swiftly/swiftly-install.sh | bash
-            
+
             # Add Swiftly to PATH for current session
             export PATH="$HOME/.local/bin:$PATH"
             echo "$HOME/.local/bin" >> $GITHUB_PATH
-            
+
             # Install latest Swift toolchain
             swiftly install latest
             swiftly use latest
-            
+
             echo "Swift installation completed:"
             swift --version
           fi
+
+      - name: Show Swift version
+        run: swift --version
 
       - name: Cache Swift Package Manager
         uses: actions/cache@v4
@@ -151,7 +81,10 @@ jobs:
             ${{ runner.os }}-${{ matrix.arch }}-spm-
             ${{ runner.os }}-spm-
 
-      - name: Build optimized static binary
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build optimized binary
         run: |
           # Show version that will be detected
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -160,27 +93,71 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
           fi
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          
-          echo "Building static Linux binary for ${{ matrix.arch }} (version will be detected as: $VERSION)..."
-          swift package resolve
-          swift build -c release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
-          strip .build/${{ matrix.triple }}/release/swift-dependency-audit
-          
-          # Verify binary
-          ls -la .build/${{ matrix.triple }}/release/swift-dependency-audit
-          file .build/${{ matrix.triple }}/release/swift-dependency-audit
-          .build/${{ matrix.triple }}/release/swift-dependency-audit --version
 
-      - name: Upload Linux binary artifacts
+          if [ "${{ matrix.platform }}" = "macOS" ]; then
+            echo "Building universal macOS binary (version will be detected as: $VERSION)..."
+            swift build --configuration release --arch arm64 --arch x86_64 -Xswiftc -Osize
+            strip -rSTx .build/apple/Products/Release/swift-dependency-audit
+          else
+            echo "Building static Linux binary for ${{ matrix.arch }} (version will be detected as: $VERSION)..."
+            swift build --configuration release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
+            strip .build/${{ matrix.triple }}/release/swift-dependency-audit
+          fi
+
+      - name: Basic functionality test
+        run: |
+          if [ "${{ matrix.platform }}" = "macOS" ]; then
+            BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+          else
+            BINARY_PATH=".build/${{ matrix.triple }}/release/swift-dependency-audit"
+          fi
+
+          echo "Testing basic functionality..."
+          $BINARY_PATH --version
+          $BINARY_PATH --help > /dev/null
+          $BINARY_PATH . --exclude-tests --quiet
+
+      - name: Comprehensive validation (macOS only)
+        if: matrix.platform == 'macOS'
+        run: |
+          BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+
+          echo "=== Comprehensive CLI Validation ==="
+          $BINARY_PATH --help
+          $BINARY_PATH --version
+
+          echo "=== Testing Self-Analysis ==="
+          $BINARY_PATH . --verbose --exclude-tests
+
+          echo "=== Testing JSON Output ==="
+          $BINARY_PATH . --json --no-color --exclude-tests > output.json
+          cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
+          echo "✅ JSON output is valid"
+
+          echo "=== Testing Output Formats ==="
+          $BINARY_PATH . --output-format xcode --quiet --exclude-tests
+          $BINARY_PATH . --output-format github-actions --quiet --exclude-tests
+
+          echo "=== Testing Custom Whitelist ==="
+          $BINARY_PATH . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
+
+          echo "=== Testing Plugin Integration ==="
+          if swift package plugin --list | grep -q "DependencyAuditPlugin"; then
+            echo "✅ Plugin is properly registered"
+          else
+            echo "⚠️ Plugin not found in list, but core functionality works"
+          fi
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-${{ matrix.arch }}-binary
-          path: .build/${{ matrix.triple }}/release/swift-dependency-audit
+          name: ${{ matrix.platform == 'macOS' && 'swift-dependency-audit-macos' || format('linux-{0}-binary', matrix.arch) }}
+          path: ${{ matrix.platform == 'macOS' && '.build/apple/Products/Release/swift-dependency-audit' || format('.build/{0}/release/swift-dependency-audit', matrix.triple) }}
           retention-days: 30
           
   create-release:
     runs-on: ubuntu-latest
-    needs: [build-macos, build-linux]
+    needs: [build]
     permissions:
       contents: write
     steps:
