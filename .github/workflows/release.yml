@@ -190,7 +190,7 @@ jobs:
       - name: Install 7zip
         run: sudo apt-get update && sudo apt-get install -y p7zip-full
         
-      - name: Create artifact bundle using Makefile
+      - name: Create artifact bundle using scripts
         run: |
           # Get version from git tag or manual input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -199,16 +199,18 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
           fi
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          echo "Creating artifact bundle for version $VERSION using Makefile"
+          echo "Creating artifact bundle for version $VERSION using scripts"
           
-          # Use Makefile to create artifact bundle (calls the scripts internally)
-          make spm_artifactbundle
+          # Create artifact bundle using existing binaries (skip rebuild)
+          chmod +x Scripts/spm-artifact-bundle.sh
+          ./Scripts/spm-artifact-bundle.sh "$VERSION"
           
           # Activate production Package.swift for releases
           cp Package-production.swift Package.swift
           
           # Update Package.swift with actual checksum and version
-          make update_package
+          chmod +x Scripts/update-artifact-bundle.sh
+          ./Scripts/update-artifact-bundle.sh "$VERSION"
           
       - name: Create traditional release archives
         run: |
