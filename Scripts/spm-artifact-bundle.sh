@@ -85,7 +85,6 @@ create_platform_binary() {
     local version="$4"
 
     local platform_dir="$BUNDLE_NAME/$TOOL_NAME-$platform"
-    local bin_dir="$platform_dir/bin"
 
     log_info "Creating $platform binary entry..."
 
@@ -96,30 +95,30 @@ create_platform_binary() {
     fi
 
     # Create directory structure
-    if ! mkdir -p "$bin_dir"; then
-        log_error "Failed to create directory: $bin_dir"
+    if ! mkdir -p "$platform_dir"; then
+        log_error "Failed to create directory: $platform_dir"
         return 1
     fi
 
     # Copy binary
-    if ! cp "$binary_path" "$bin_dir/$target_name"; then
-        log_error "Failed to copy binary from $binary_path to $bin_dir/$target_name"
+    if ! cp "$binary_path" "$platform_dir/$target_name"; then
+        log_error "Failed to copy binary from $binary_path to $platform_dir/$target_name"
         return 1
     fi
 
-    if ! chmod +x "$bin_dir/$target_name"; then
-        log_error "Failed to make binary executable: $bin_dir/$target_name"
+    if ! chmod +x "$platform_dir/$target_name"; then
+        log_error "Failed to make binary executable: $platform_dir/$target_name"
         return 1
     fi
 
     # Verify the copy
-    if [[ ! -f "$bin_dir/$target_name" ]]; then
-        log_error "Failed to copy $platform binary to $bin_dir/$target_name"
+    if [[ ! -f "$platform_dir/$target_name" ]]; then
+        log_error "Failed to copy $platform binary to $platform_dir/$target_name"
         return 1
     fi
 
-    local copied_size=$(du -h "$bin_dir/$target_name" | cut -f1)
-    log_success "$platform binary created: $bin_dir/$target_name ($copied_size)"
+    local copied_size=$(du -h "$platform_dir/$target_name" | cut -f1)
+    log_success "$platform binary created: $platform_dir/$target_name ($copied_size)"
 
     return 0
 }
