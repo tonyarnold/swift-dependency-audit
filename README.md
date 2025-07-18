@@ -211,7 +211,6 @@ Creates rich annotations in CI/CD workflows:
 ## Requirements
 
 - Swift 6.1+
-- macOS 15+
 
 ## Development
 
