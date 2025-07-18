@@ -4,7 +4,7 @@
 # Creates Swift Package Manager compatible artifact bundles with multi-platform binaries
 # Usage: ./spm-artifact-bundle.sh <version>
 
-set -euox pipefail
+set -euo pipefail
 
 # Configuration
 readonly SCRIPT_NAME="$(basename "$0")"

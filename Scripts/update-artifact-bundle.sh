@@ -4,7 +4,7 @@
 # Updates Package.swift with new version and checksum for binary targets
 # Usage: ./update-artifact-bundle.sh <version>
 
-set -euox pipefail
+set -euo pipefail
 
 # Configuration
 readonly SCRIPT_NAME="$(basename "$0")"

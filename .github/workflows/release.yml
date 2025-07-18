@@ -193,8 +193,6 @@ jobs:
 
       - name: Create artifact bundle using scripts
         run: |
-          set -euox pipefail
-
           # Get version from git tag or manual input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.tag_name }}"
