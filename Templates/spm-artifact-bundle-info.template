@@ -6,15 +6,15 @@
             "type": "executable",
             "variants": [
                 {
-                    "path": "swift-dependency-audit-macos/bin/swift-dependency-audit",
+                    "path": "swift-dependency-audit-macos/swift-dependency-audit",
                     "supportedTriples": ["x86_64-apple-macosx", "arm64-apple-macosx"]
                 },
                 {
-                    "path": "swift-dependency-audit-x86_64-unknown-linux-gnu/bin/swift-dependency-audit",
+                    "path": "swift-dependency-audit-x86_64-unknown-linux-gnu/swift-dependency-audit",
                     "supportedTriples": ["x86_64-unknown-linux-gnu"]
                 },
                 {
-                    "path": "swift-dependency-audit-aarch64-unknown-linux-gnu/bin/swift-dependency-audit",
+                    "path": "swift-dependency-audit-aarch64-unknown-linux-gnu/swift-dependency-audit",
                     "supportedTriples": ["aarch64-unknown-linux-gnu"]
                 }
             ]
