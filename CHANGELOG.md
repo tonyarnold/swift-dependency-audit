@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-Platform Binary Target Distribution**
+  - Cross-platform artifact bundles for Swift Package Manager with pre-compiled binaries
+  - Universal macOS binary supporting ARM64 and x86_64 architectures
+  - Linux binaries for x86_64 and ARM64 architectures
+  - Automated GitHub Actions release workflow for multi-platform builds
+  - SHA256 checksum verification for binary integrity
+  - Artifact bundle generation script for automated distribution
+  - Hybrid binary/source build tool plugin execution following SwiftLint's proven pattern
+
+- **Swift Build Tool Plugin Integration**
+  - Automatic dependency validation during builds with Swift Package Manager build tool plugin
+  - Zero-configuration integration - works automatically when applied to package targets
+  - Seamless Xcode integration with native build system error and warning reporting
+  - Target-specific analysis validates dependencies for each target individually
+  - Prebuild command execution ensures validation before compilation begins
+  - IDE-friendly output with Xcode-compatible error messages and navigation
+  - Support for both Swift Package Manager command-line builds and Xcode workspace builds
+  - Plugin automatically excludes test dependencies when analyzing non-test targets
+  - Operates in quiet mode by default to focus on dependency issues during builds
 - **Product-Level Dependency Detection**
   - Analyzes external package products from `.build/checkouts` directory after `swift resolve`
   - Detects imports satisfied by product dependencies to prevent false "missing dependency" reports
@@ -40,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved CI compatibility by treating redundant dependencies as non-blocking warnings
 
 ### Enhanced
+- **Build Tool Plugin Robustness**
+  - Enhanced target filtering to use `SourceModuleTarget` type checking instead of analyzing all targets
+  - Improved test target detection using `sourceTarget.kind != .test` instead of brittle string matching
+  - Optimized plugin to only run on source-based targets, reducing unnecessary executions
+
+### Enhanced
 - **Redundant Dependency Reporting**
   - Enhanced redundant dependency warnings to show which specific product dependency provides each redundant direct dependency
   - Updated output format: `• TargetName (available through ProductName from PackageName)`
@@ -68,6 +93,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced dependency parsing to capture exact line numbers where dependencies are declared
 
 ### Technical Details
+- **Multi-Platform Binary Distribution**
+  - Added `Scripts/spm-artifact-bundle.sh` for automated artifact bundle generation
+  - Created `Scripts/spm-artifact-bundle-info.template` for Swift Package Manager manifest generation
+  - Implemented GitHub Actions workflow with matrix strategy for cross-platform builds
+  - Binary optimization with `strip` for size reduction and `-Xswiftc -Osize` for performance
+  - Artifact bundle structure following SPM schema version 1.0 with multi-platform variants
+  - Automated checksum calculation with SHA256 for security verification
+  - Hybrid distribution model with conditional binary targets for optimal platform support
+  - Dedicated `Scripts/update-artifact-bundle.sh` script for automated Package.swift checksum updates
+  - Conditional compilation patterns following Swift Package Manager best practices
+
+- **Swift Build Tool Plugin Architecture**
+  - Added `DependencyAuditPlugin` conforming to `BuildToolPlugin` protocol with `@main` annotation
+  - Implemented `createBuildCommands(context:target:)` method for prebuild command generation
+  - Hybrid execution using `context.tool(named:)` with conditional platform dependencies
+  - Uses modern PackagePlugin API with `pluginWorkDirectoryURL` and `directoryURL` properties
+  - Target filtering with `SourceModuleTarget` type checking to reduce overhead
+  - Proper test target detection using `sourceTarget.kind != .test` instead of string matching
+  - Automatic test exclusion for non-test targets via `--exclude-tests` flag
+  - Xcode-compatible output format via `--output-format xcode` for seamless IDE integration
+  - Quiet mode operation via `--quiet` flag to focus on issues during builds
+  - Plugin target definition in Package.swift with `.buildTool()` capability
+
 - **Product-Level Dependency Analysis**
   - Added `Product`, `ExternalPackage`, `ExternalPackageDependency`, and `ProductSatisfiedDependency` models
   - New `ExternalPackageResolver` actor for discovering and parsing external packages from `.build/checkouts`

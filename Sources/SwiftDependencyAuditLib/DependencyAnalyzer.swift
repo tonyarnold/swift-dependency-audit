@@ -40,7 +40,8 @@ public actor DependencyAnalyzer {
             packageInfo: packageInfo,
             externalPackages: externalPackages,
             productToTargetMapping: productToTargetMapping,
-            sourceFiles: sourceFiles
+            sourceFiles: sourceFiles,
+            customWhitelist: customWhitelist
         )
         
         return analysisResult
@@ -77,7 +78,8 @@ public actor DependencyAnalyzer {
         packageInfo: PackageInfo,
         externalPackages: [ExternalPackage],
         productToTargetMapping: [String: [String]],
-        sourceFiles: [SourceFile]
+        sourceFiles: [SourceFile],
+        customWhitelist: Set<String> = []
     ) -> AnalysisResult {
         
         let internalModules = getInternalModules(from: packageInfo, excluding: target)
@@ -165,10 +167,11 @@ public actor DependencyAnalyzer {
             .subtracting(internalModules)
         
         // For unused dependencies, exclude redundant direct dependencies (those covered by products)
+        // and also exclude whitelisted dependencies
         let redundantTargetNames = Set(redundantDirectDependencies.map { $0.targetName })
         let nonRedundantTargetDependencies = targetDependencies.subtracting(redundantTargetNames)
-        let unusedTargetDependencies = nonRedundantTargetDependencies.subtracting(allImports)
-        let unusedProductDependencies = productDependencies.subtracting(allImports).subtracting(productSatisfiedImports)
+        let unusedTargetDependencies = nonRedundantTargetDependencies.subtracting(allImports).subtracting(customWhitelist)
+        let unusedProductDependencies = productDependencies.subtracting(allImports).subtracting(productSatisfiedImports).subtracting(customWhitelist)
         let unusedDependencies = unusedTargetDependencies.union(unusedProductDependencies)
         
         // Correct dependencies include both target dependencies and product dependencies that are actually used

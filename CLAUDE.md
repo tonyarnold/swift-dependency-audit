@@ -153,3 +153,7 @@ See PROJECT_PLAN.md for detailed implementation phases and technical specificati
 ## Testing Guidelines
 
 - Please do not include identifying information in any tests you create. No product or company names.
+
+## Claude Memories
+
+- It's 2025, stop appending 2024 to your searches.

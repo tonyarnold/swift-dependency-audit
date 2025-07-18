@@ -105,12 +105,13 @@ struct IntegrationTests {
         
         let analyzer = DependencyAnalyzer()
         
-        let startTime = CFAbsoluteTimeGetCurrent()
+        let startTime = Date()
         let results = try await analyzer.analyzePackage(packageInfo)
-        let endTime = CFAbsoluteTimeGetCurrent()
+        let endTime = Date()
         
         // Verify performance is reasonable (should handle 50 files quickly)
-        #expect((endTime - startTime) < 5.0) // 5 seconds max
+        let duration = endTime.timeIntervalSince(startTime)
+        #expect(duration < 5.0) // 5 seconds max
         #expect(results.count == 1)
         
         let result = results[0]
