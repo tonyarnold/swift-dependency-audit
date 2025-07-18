@@ -30,11 +30,13 @@ jobs:
             platform: "Linux"
             arch: "x86_64"
             triple: "x86_64-unknown-linux-gnu"
+            comprehensive_test: true
           - name: "Linux ARM64"
             runner: ubuntu-24.04-arm
             platform: "Linux"
             arch: "aarch64"
             triple: "aarch64-unknown-linux-gnu"
+            comprehensive_test: true
 
     steps:
       - name: Checkout code
@@ -118,10 +120,14 @@ jobs:
           $BINARY_PATH --help > /dev/null
           $BINARY_PATH . --exclude-tests --quiet
 
-      - name: Comprehensive validation (macOS only)
+      - name: Comprehensive validation
         if: matrix.comprehensive_test
         run: |
-          BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+          if [ "${{ matrix.platform }}" = "macOS" ]; then
+            BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+          else
+            BINARY_PATH=".build/${{ matrix.triple }}/release/swift-dependency-audit"
+          fi
 
           echo "=== Comprehensive CLI Validation ==="
           $BINARY_PATH --help

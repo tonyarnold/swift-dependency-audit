@@ -117,10 +117,13 @@ jobs:
           $BINARY_PATH --help > /dev/null
           $BINARY_PATH . --exclude-tests --quiet
 
-      - name: Comprehensive validation (macOS only)
-        if: matrix.platform == 'macOS'
+      - name: Comprehensive validation
         run: |
-          BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+          if [ "${{ matrix.platform }}" = "macOS" ]; then
+            BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
+          else
+            BINARY_PATH=".build/${{ matrix.triple }}/release/swift-dependency-audit"
+          fi
 
           echo "=== Comprehensive CLI Validation ==="
           $BINARY_PATH --help
