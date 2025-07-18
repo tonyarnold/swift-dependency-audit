@@ -84,7 +84,7 @@ create_platform_binary() {
     local target_name="$3"
     local version="$4"
 
-    local platform_dir="$BUNDLE_NAME/$TOOL_NAME-$version-$platform"
+    local platform_dir="$BUNDLE_NAME/$TOOL_NAME-$platform"
     local bin_dir="$platform_dir/bin"
 
     log_info "Creating $platform binary entry..."
@@ -184,7 +184,7 @@ main() {
     # Create Linux x86_64 binary
     local linux_x86_path=".build/x86_64-unknown-linux-gnu/release/swift-dependency-audit"
     if [[ -f "$linux_x86_path" ]]; then
-        if create_platform_binary "linux-gnu" "$linux_x86_path" "swift-dependency-audit" "$clean_version"; then
+        if create_platform_binary "x86_64-unknown-linux-gnu" "$linux_x86_path" "swift-dependency-audit" "$clean_version"; then
             ((binaries_created++))
         else
             log_warning "Failed to create Linux x86_64 binary bundle"
@@ -193,20 +193,13 @@ main() {
         log_warning "Linux x86_64 binary not found: $linux_x86_path"
     fi
 
-    # Create Linux ARM64 binary (add to existing linux-gnu directory)
+    # Create Linux ARM64 binary
     local linux_arm_path=".build/aarch64-unknown-linux-gnu/release/swift-dependency-audit"
     if [[ -f "$linux_arm_path" ]]; then
-        local linux_dir="$BUNDLE_NAME/$TOOL_NAME-$clean_version-linux-gnu/bin"
-        mkdir -p "$linux_dir"
-
-        if validate_binary "$linux_arm_path" "Linux ARM64"; then
-            cp "$linux_arm_path" "$linux_dir/swift-dependency-audit_aarch64"
-            chmod +x "$linux_dir/swift-dependency-audit_aarch64"
-            local arm_size=$(du -h "$linux_dir/swift-dependency-audit_aarch64" | cut -f1)
-            log_success "Linux ARM64 binary created: $linux_dir/swift-dependency-audit_aarch64 ($arm_size)"
+        if create_platform_binary "aarch64-unknown-linux-gnu" "$linux_arm_path" "swift-dependency-audit" "$clean_version"; then
             ((binaries_created++))
         else
-            log_warning "Failed to validate Linux ARM64 binary"
+            log_warning "Failed to create Linux aarch64 binary bundle"
         fi
     else
         log_warning "Linux ARM64 binary not found: $linux_arm_path"
