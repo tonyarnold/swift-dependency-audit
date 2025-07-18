@@ -87,15 +87,26 @@ create_platform_binary() {
     
     # Validate binary exists and is executable
     if ! validate_binary "$binary_path" "$platform"; then
+        log_error "Validation failed for $platform binary: $binary_path"
         return 1
     fi
     
     # Create directory structure
-    mkdir -p "$bin_dir"
+    if ! mkdir -p "$bin_dir"; then
+        log_error "Failed to create directory: $bin_dir"
+        return 1
+    fi
     
     # Copy binary
-    cp "$binary_path" "$bin_dir/$target_name"
-    chmod +x "$bin_dir/$target_name"
+    if ! cp "$binary_path" "$bin_dir/$target_name"; then
+        log_error "Failed to copy binary from $binary_path to $bin_dir/$target_name"
+        return 1
+    fi
+    
+    if ! chmod +x "$bin_dir/$target_name"; then
+        log_error "Failed to make binary executable: $bin_dir/$target_name"
+        return 1
+    fi
     
     # Verify the copy
     if [[ ! -f "$bin_dir/$target_name" ]]; then
@@ -183,6 +194,8 @@ main() {
     if [[ -f "$linux_x86_path" ]]; then
         if create_platform_binary "linux-gnu" "$linux_x86_path" "swift-dependency-audit" "$clean_version"; then
             ((binaries_created++))
+        else
+            log_warning "Failed to create Linux x86_64 binary bundle"
         fi
     else
         log_warning "Linux x86_64 binary not found: $linux_x86_path"
@@ -200,6 +213,8 @@ main() {
             local arm_size=$(du -h "$linux_dir/swift-dependency-audit_aarch64" | cut -f1)
             log_success "Linux ARM64 binary created: $linux_dir/swift-dependency-audit_aarch64 ($arm_size)"
             ((binaries_created++))
+        else
+            log_warning "Failed to validate Linux ARM64 binary"
         fi
     else
         log_warning "Linux ARM64 binary not found: $linux_arm_path"
