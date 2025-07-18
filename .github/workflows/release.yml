@@ -250,9 +250,8 @@ jobs:
           git push origin "$RELEASE_BRANCH"
 
           # Update the release tag to point to this commit
-          git push origin :refs/tags/$VERSION
           git tag -f "$VERSION"
-          git push origin --tags
+          git push origin --tags --force
 
       - name: Create traditional release archives
         run: |
