@@ -133,24 +133,29 @@ main() {
     fi
 
     # Update the download URL with proper error handling
-    if ! sed -i '' \
-        "s|.*github\.com/tonyarnold/swift-dependency-audit/releases/download/.*/swift-dependency-audit\.artifactbundle\.zip.*|        url: \"https://github.com/tonyarnold/swift-dependency-audit/releases/download/$version/swift-dependency-audit.artifactbundle.zip\",|g" \
-        "$PACKAGE_FILE"; then
+    # Use a simpler approach that works across different sed implementations
+    local temp_file="$(mktemp)"
+    if ! sed "s|url: \".*swift-dependency-audit\.artifactbundle\.zip\"|url: \"https://github.com/tonyarnold/swift-dependency-audit/releases/download/$version/swift-dependency-audit.artifactbundle.zip\"|g" \
+        "$PACKAGE_FILE" > "$temp_file"; then
         log_error "Failed to update download URL in Package.swift"
         log_warning "Restoring backup..."
         mv "$BACKUP_FILE" "$PACKAGE_FILE"
+        rm -f "$temp_file"
         exit 1
     fi
+    mv "$temp_file" "$PACKAGE_FILE"
 
     # Update the checksum with proper error handling
-    if ! sed -i '' \
-        "s/.*checksum:.*/        checksum: \"$checksum\"/g" \
-        "$PACKAGE_FILE"; then
+    local temp_file2="$(mktemp)"
+    if ! sed "s|checksum: \".*\"|checksum: \"$checksum\"|g" \
+        "$PACKAGE_FILE" > "$temp_file2"; then
         log_error "Failed to update checksum in Package.swift"
         log_warning "Restoring backup..."
         mv "$BACKUP_FILE" "$PACKAGE_FILE"
+        rm -f "$temp_file2"
         exit 1
     fi
+    mv "$temp_file2" "$PACKAGE_FILE"
 
     # Verify the changes were applied correctly
     log_info "Verifying changes..."

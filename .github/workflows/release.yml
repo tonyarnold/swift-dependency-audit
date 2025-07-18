@@ -221,6 +221,40 @@ jobs:
           chmod +x Scripts/update-artifact-bundle.sh
           ./Scripts/update-artifact-bundle.sh "$VERSION"
 
+      - name: Commit updated Package.swift to release branch
+        run: |
+          # Configure git for GitHub Actions bot
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Get version
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag_name }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+
+          # Create and switch to release branch
+          RELEASE_BRANCH="release/${VERSION}"
+          git checkout -b "$RELEASE_BRANCH"
+
+          # Add and commit the updated Package.swift
+          git add Package.swift
+          git commit -m "Release Package.swift for $VERSION
+
+          - Production Package.swift with binary targets
+          - Updated binary target URL for $VERSION
+          - Updated checksum: $(cat swift-dependency-audit.artifactbundle.zip.checksum)
+
+          🤖 Automated release commit"
+
+          # Push the release branch
+          git push origin "$RELEASE_BRANCH"
+
+          # Update the release tag to point to this commit
+          git tag -f "$VERSION"
+          git push origin --tags
+
       - name: Create traditional release archives
         run: |
           # Get version
