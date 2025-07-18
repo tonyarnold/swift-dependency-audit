@@ -216,7 +216,7 @@ jobs:
           fi
 
           # Activate production Package.swift for releases
-          cp Package-production.swift Package.swift
+          cp Templates/Package-production.swift Package.swift
 
           # Update Package.swift with actual checksum and version
           chmod +x Scripts/update-artifact-bundle.sh

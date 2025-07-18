@@ -10,7 +10,7 @@ set -euox pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TOOL_NAME="swift-dependency-audit"
 readonly BUNDLE_NAME="swift-dependency-audit.artifactbundle"
-readonly TEMPLATE_FILE="Scripts/spm-artifact-bundle-info.template"
+readonly TEMPLATE_FILE="Templates/spm-artifact-bundle-info.template"
 
 # Colors for output
 readonly RED='\033[0;31m'
