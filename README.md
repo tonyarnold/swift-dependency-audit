@@ -96,8 +96,6 @@ SwiftDependencyAudit includes a Swift Package Manager build tool plugin that aut
 
 ### Plugin Integration
 
-The build tool plugin uses a hybrid approach for optimal performance and compatibility:
-
 ```swift
 // Package.swift
 let package = Package(
