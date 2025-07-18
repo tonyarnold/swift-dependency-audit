@@ -33,6 +33,7 @@ let package = Package(
     targets: [
         .target(
             name: "SwiftDependencyAuditLib",
+            plugins: ["VersionPlugin"]
         ),
         .executableTarget(
             name: "SwiftDependencyAudit",
@@ -40,6 +41,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "SwiftDependencyAuditLib"
             ]
+        ),
+        .executableTarget(
+            name: "VersionGenerator"
         ),
         .testTarget(
             name: "SwiftDependencyAuditTests",
@@ -49,6 +53,11 @@ let package = Package(
             name: "DependencyAuditPlugin",
             capability: .buildTool(),
             dependencies: swiftDependencyAuditPluginDependencies
+        ),
+        .plugin(
+            name: "VersionPlugin",
+            capability: .buildTool(),
+            dependencies: ["VersionGenerator"]
         ),
     ]
 )

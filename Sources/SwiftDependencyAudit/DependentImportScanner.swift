@@ -10,17 +10,8 @@ import Foundation
 
 /// Get the version string, trying multiple sources
 private func getVersion() -> String {
-    // First try to get version from git if available (for development)
-    if let gitVersion = getGitVersion() {
-        return gitVersion
-    }
-    
-    // Fallback to embedded version
-    #if DEBUG
-    return "dev"
-    #else
-    return "1.0.0"  // Fallback for release builds
-    #endif
+    // Always use the build-time generated version from the plugin
+    return SwiftDependencyAuditLib.VERSION
 }
 
 /// Attempt to get version from git (for development builds)
