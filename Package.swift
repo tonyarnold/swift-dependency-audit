@@ -43,7 +43,10 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "VersionGenerator"
+            name: "VersionGenerator",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
         ),
         .testTarget(
             name: "SwiftDependencyAuditTests",
