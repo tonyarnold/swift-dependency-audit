@@ -1,7 +1,7 @@
 import Foundation
 
 public struct GitHubActionsOutput {
-    
+
     public static func error(file: String, line: Int? = nil, message: String) -> String {
         var parameters = "file=\(file)"
         if let line = line {
@@ -9,7 +9,7 @@ public struct GitHubActionsOutput {
         }
         return "::\("error") \(parameters)::\(message)"
     }
-    
+
     public static func warning(file: String, line: Int? = nil, message: String) -> String {
         var parameters = "file=\(file)"
         if let line = line {
@@ -17,7 +17,7 @@ public struct GitHubActionsOutput {
         }
         return "::\("warning") \(parameters)::\(message)"
     }
-    
+
     public static func notice(file: String, line: Int? = nil, message: String) -> String {
         var parameters = "file=\(file)"
         if let line = line {
@@ -25,7 +25,7 @@ public struct GitHubActionsOutput {
         }
         return "::\("notice") \(parameters)::\(message)"
     }
-    
+
     public static func missingDependencyError(dependency: String, file: String, line: Int? = nil) -> String {
         return error(
             file: file,
@@ -33,8 +33,10 @@ public struct GitHubActionsOutput {
             message: "Missing dependency '\(dependency)' is imported but not declared in Package.swift"
         )
     }
-    
-    public static func unusedDependencyWarning(dependency: String, targetName: String, packageFile: String, line: Int? = nil) -> String {
+
+    public static func unusedDependencyWarning(
+        dependency: String, targetName: String, packageFile: String, line: Int? = nil
+    ) -> String {
         return warning(
             file: packageFile,
             line: line,
