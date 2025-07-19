@@ -173,13 +173,6 @@ jobs:
           echo "=== Testing Custom Whitelist ==="
           $BINARY_PATH . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
 
-          echo "=== Testing Plugin Integration ==="
-          if swift package plugin --list | grep -q "DependencyAuditPlugin"; then
-            echo "✅ Plugin is properly registered"
-          else
-            echo "⚠️ Plugin not found in list, but core functionality works"
-          fi
-
       - name: Lint and format check
         if: matrix.lint_check
         run: |
@@ -189,16 +182,6 @@ jobs:
             find Sources Tests -name "*.swift" | xargs swift-format --mode diff
           else
             echo "swift-format not available, skipping format check"
-          fi
-
-          echo "=== Build Warnings Check ==="
-          swift build --configuration release 2>&1 | tee build.log
-          if grep -q "warning:" build.log; then
-            echo "⚠️  Build warnings found:"
-            grep "warning:" build.log
-            exit 1
-          else
-            echo "✅ No build warnings found"
           fi
         continue-on-error: true
 

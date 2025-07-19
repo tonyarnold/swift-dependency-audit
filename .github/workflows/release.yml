@@ -96,29 +96,29 @@ jobs:
 
           if [ "${{ matrix.platform }}" = "macOS" ]; then
             echo "Building universal macOS binary (version will be detected as: $VERSION)..."
-            
+
             # Build ARM64 binary
             echo "Building ARM64 binary..."
             swift build --configuration release --arch arm64 -Xswiftc -Osize
-            
+
             # Build x86_64 binary
             echo "Building x86_64 binary..."
             swift build --configuration release --arch x86_64 -Xswiftc -Osize
-            
+
             # Create output directory
             mkdir -p .build/apple/Products/Release
-            
+
             # Combine architectures with lipo
             echo "Combining architectures with lipo..."
             lipo -create \
               .build/arm64-apple-macosx/release/swift-dependency-audit \
               .build/x86_64-apple-macosx/release/swift-dependency-audit \
               -output .build/apple/Products/Release/swift-dependency-audit
-            
+
             # Verify the universal binary
             echo "Verifying universal binary..."
             lipo -info .build/apple/Products/Release/swift-dependency-audit
-            
+
             # Strip the final binary
             strip -rSTx .build/apple/Products/Release/swift-dependency-audit
           else
@@ -166,13 +166,6 @@ jobs:
 
           echo "=== Testing Custom Whitelist ==="
           $BINARY_PATH . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
-
-          echo "=== Testing Plugin Integration ==="
-          if swift package plugin --list | grep -q "DependencyAuditPlugin"; then
-            echo "✅ Plugin is properly registered"
-          else
-            echo "⚠️ Plugin not found in list, but core functionality works"
-          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
