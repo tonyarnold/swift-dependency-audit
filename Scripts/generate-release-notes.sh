@@ -2,13 +2,14 @@
 
 # SwiftDependencyAudit Release Notes Generator
 # Extracts release notes from CHANGELOG.md for a specific version
-# Usage: ./generate-release-notes.sh <version>
+# Can optionally update the CHANGELOG.md to convert "Unreleased" to a versioned release
+# Usage: ./generate-release-notes.sh <version> [--update-changelog]
 
 set -euo pipefail
 
 # Configuration
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly CHANGELOG_FILE="CHANGELOG.md"
+readonly CHANGELOG_FILE="${CHANGELOG_FILE:-CHANGELOG.md}"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -34,16 +35,110 @@ log_error() {
     echo -e "${RED}❌ $*${NC}" >&2
 }
 
+# Function to update changelog
+update_changelog() {
+    local version="$1"
+    local clean_version="${version#v}"
+    local current_date
+    current_date="$(date +%Y-%m-%d)"
+    
+    log_info "Updating CHANGELOG.md to release version $version"
+    
+    # Create backup
+    cp "$CHANGELOG_FILE" "${CHANGELOG_FILE}.backup"
+    log_info "Created backup: ${CHANGELOG_FILE}.backup"
+    
+    # Create temporary file
+    local temp_file
+    temp_file="$(mktemp)"
+    
+    # Process the changelog
+    awk -v version="$clean_version" -v date="$current_date" '
+    BEGIN { updated_unreleased = 0 }
+    
+    # Replace the first occurrence of [Unreleased] with the version
+    /^## \[Unreleased\]$/ && !updated_unreleased {
+        print "## [Unreleased]"
+        print ""
+        print "## [" version "] - " date
+        updated_unreleased = 1
+        next
+    }
+    
+    # Update the link at the bottom for the new version
+    /^\[Unreleased\]:/ {
+        # Extract the repository URL pattern
+        gsub(/compare\/.*\.\.\.HEAD/, "compare/v" version "...HEAD")
+        print
+        print "[" version "]: https://github.com/yourusername/SwiftDependencyAudit/releases/tag/v" version
+        next
+    }
+    
+    # Print all other lines unchanged
+    { print }
+    ' "$CHANGELOG_FILE" > "$temp_file"
+    
+    # Replace original with updated content
+    mv "$temp_file" "$CHANGELOG_FILE"
+    
+    log_success "Successfully updated CHANGELOG.md"
+    log_info "- Converted [Unreleased] to [$clean_version] - $current_date"
+    log_info "- Added new empty [Unreleased] section"
+    log_info "- Updated version links"
+}
+
 # Main function
 main() {
-    # Check arguments
-    if [[ $# -ne 1 ]]; then
-        log_error "Usage: $SCRIPT_NAME <version>"
-        log_error "Example: $SCRIPT_NAME v1.0.0"
+    # Parse arguments
+    local version=""
+    local update_changelog=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --update-changelog)
+                update_changelog=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: $SCRIPT_NAME <version> [--update-changelog]"
+                echo ""
+                echo "Arguments:"
+                echo "  <version>            Version to extract/create (e.g., v1.0.0, 1.0.0, unreleased)"
+                echo ""
+                echo "Options:"
+                echo "  --update-changelog   Update CHANGELOG.md to convert [Unreleased] to versioned release"
+                echo "  --help, -h          Show this help message"
+                echo ""
+                echo "Examples:"
+                echo "  $SCRIPT_NAME v1.0.0                    # Extract release notes for v1.0.0"
+                echo "  $SCRIPT_NAME unreleased                # Extract unreleased changes"
+                echo "  $SCRIPT_NAME v1.1.0 --update-changelog # Extract notes and update changelog"
+                exit 0
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                log_error "Use --help for usage information"
+                exit 1
+                ;;
+            *)
+                if [[ -z "$version" ]]; then
+                    version="$1"
+                else
+                    log_error "Multiple versions specified: $version and $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Check required arguments
+    if [[ -z "$version" ]]; then
+        log_error "Usage: $SCRIPT_NAME <version> [--update-changelog]"
+        log_error "Example: $SCRIPT_NAME v1.0.0 --update-changelog"
+        log_error "Use --help for more information"
         exit 1
     fi
-    
-    local version="$1"
     
     # Remove 'v' prefix if present for matching
     local clean_version="${version#v}"
@@ -52,6 +147,26 @@ main() {
     if [[ ! -f "$CHANGELOG_FILE" ]]; then
         log_error "CHANGELOG.md not found in current directory"
         exit 1
+    fi
+    
+    # Update changelog if requested
+    if [[ "$update_changelog" == true ]]; then
+        if [[ "$clean_version" == "unreleased" ]] || [[ "$version" == "unreleased" ]]; then
+            log_error "Cannot update changelog for 'unreleased' version"
+            log_error "Please specify a specific version (e.g., v1.0.0)"
+            exit 1
+        fi
+        
+        # Check if unreleased section exists
+        if ! grep -q "^## \[Unreleased\]" "$CHANGELOG_FILE"; then
+            log_error "No [Unreleased] section found in $CHANGELOG_FILE"
+            log_error "Cannot update changelog without unreleased content"
+            exit 1
+        fi
+        
+        # Update the changelog
+        update_changelog "$version"
+        log_info ""
     fi
     
     log_info "Extracting release notes for version $version from $CHANGELOG_FILE"
@@ -64,9 +179,8 @@ main() {
         awk '
         /^## \[Unreleased\]/ { found=1; next }
         /^## \[/ && found { exit }
-        found && /^$/ { print; next }
-        found && !/^$/ { print }
-        ' "$CHANGELOG_FILE" | sed '/^$/d' | head -n -1
+        found { print }
+        ' "$CHANGELOG_FILE"
         
         if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
             log_error "Failed to extract unreleased section from CHANGELOG.md"
