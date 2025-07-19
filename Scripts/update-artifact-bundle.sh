@@ -39,7 +39,7 @@ log_error() {
 # Utility functions
 calculate_checksum() {
     local file="$1"
-    
+
     if command -v shasum >/dev/null 2>&1; then
         # macOS/BSD systems
         shasum -a 256 "$file" | cut -d' ' -f1
@@ -151,9 +151,9 @@ main() {
     # Update the download URL with proper error handling
     # Use a simpler approach that works across different sed implementations
     local temp_file="$(mktemp)"
-    if ! sed "s|url: \".*swift-dependency-audit\.artifactbundle\.zip\"|url: \"https://github.com/tonyarnold/swift-dependency-audit/releases/download/$version/swift-dependency-audit.artifactbundle.zip\"|g" \
+    if ! sed "s|VERSION_PLACEHOLDER|$version|g" \
         "$PACKAGE_FILE" > "$temp_file"; then
-        log_error "Failed to update download URL in Package.swift"
+        log_error "Failed to update version placeholder in Package.swift"
         log_warning "Restoring backup..."
         mv "$BACKUP_FILE" "$PACKAGE_FILE"
         rm -f "$temp_file"
@@ -163,9 +163,9 @@ main() {
 
     # Update the checksum with proper error handling
     local temp_file2="$(mktemp)"
-    if ! sed "s|checksum: \".*\"|checksum: \"$checksum\"|g" \
+    if ! sed "s|CHECKSUM_PLACEHOLDER|$checksum|g" \
         "$PACKAGE_FILE" > "$temp_file2"; then
-        log_error "Failed to update checksum in Package.swift"
+        log_error "Failed to update checksum placeholder in Package.swift"
         log_warning "Restoring backup..."
         mv "$BACKUP_FILE" "$PACKAGE_FILE"
         rm -f "$temp_file2"

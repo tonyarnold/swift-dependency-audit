@@ -67,8 +67,8 @@ let package = Package(
         .binaryTarget(
             name: "SwiftDependencyAuditBinary",
             url:
-                "https://github.com/tonyarnold/swift-dependency-audit/releases/download/0.1.0/swift-dependency-audit.artifactbundle.zip",
-            checksum: "placeholder_checksum_will_be_updated_by_release_script"
+                "https://github.com/tonyarnold/swift-dependency-audit/releases/download/VERSION_PLACEHOLDER/swift-dependency-audit.artifactbundle.zip",
+            checksum: "CHECKSUM_PLACEHOLDER"
         )
     )
 #endif
