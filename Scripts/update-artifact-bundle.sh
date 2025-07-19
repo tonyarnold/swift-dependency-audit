@@ -36,6 +36,22 @@ log_error() {
     echo -e "${RED}❌ $*${NC}" >&2
 }
 
+# Utility functions
+calculate_checksum() {
+    local file="$1"
+    
+    if command -v shasum >/dev/null 2>&1; then
+        # macOS/BSD systems
+        shasum -a 256 "$file" | cut -d' ' -f1
+    elif command -v sha256sum >/dev/null 2>&1; then
+        # Linux/GNU systems
+        sha256sum "$file" | cut -d' ' -f1
+    else
+        log_error "No checksum tool available (shasum or sha256sum)"
+        return 1
+    fi
+}
+
 # Validation functions
 validate_version() {
     local version="$1"
@@ -102,7 +118,7 @@ main() {
 
     # Calculate and validate checksum
     log_info "Calculating SHA256 checksum for $ARTIFACT_BUNDLE..."
-    local readonly checksum="$(shasum -a 256 "$ARTIFACT_BUNDLE" | cut -d " " -f1)"
+    local readonly checksum="$(calculate_checksum "$ARTIFACT_BUNDLE")"
 
     if ! validate_checksum "$checksum"; then
         exit 1

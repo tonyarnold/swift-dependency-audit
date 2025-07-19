@@ -157,7 +157,7 @@ jobs:
 
           echo "=== Testing JSON Output ==="
           $BINARY_PATH . --output-format json --no-color --exclude-tests > output.json
-          cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
+          jq . output.json > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
           echo "✅ JSON output is valid"
 
           echo "=== Testing Output Formats ==="
@@ -313,7 +313,15 @@ jobs:
       - name: Generate checksums
         run: |
           cd release
-          shasum -a 256 *.tar.gz > checksums.txt
+          # Use portable checksum command
+          if command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 *.tar.gz > checksums.txt
+          elif command -v sha256sum >/dev/null 2>&1; then
+            sha256sum *.tar.gz > checksums.txt
+          else
+            echo "❌ No checksum tool available"
+            exit 1
+          fi
           cat checksums.txt
 
       - name: Generate release notes

@@ -36,6 +36,22 @@ log_error() {
     echo -e "${RED}❌ $*${NC}" >&2
 }
 
+# Utility functions
+calculate_checksum() {
+    local file="$1"
+    
+    if command -v shasum >/dev/null 2>&1; then
+        # macOS/BSD systems
+        shasum -a 256 "$file" | cut -d' ' -f1
+    elif command -v sha256sum >/dev/null 2>&1; then
+        # Linux/GNU systems
+        sha256sum "$file" | cut -d' ' -f1
+    else
+        log_error "No checksum tool available (shasum or sha256sum)"
+        return 1
+    fi
+}
+
 # Validation functions
 validate_version() {
     local version="$1"
@@ -257,7 +273,7 @@ main() {
     fi
 
     # Calculate checksum
-    local checksum=$(shasum -a 256 "$zip_name" | cut -d' ' -f1)
+    local checksum=$(calculate_checksum "$zip_name")
     local zip_size=$(du -h "$zip_name" | cut -f1)
 
     # Save checksum to file for CI

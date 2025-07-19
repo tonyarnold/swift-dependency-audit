@@ -99,7 +99,30 @@ jobs:
 
           if [ "${{ matrix.platform }}" = "macOS" ]; then
             echo "Building universal macOS binary..."
-            swift build --configuration release --arch arm64 --arch x86_64 -Xswiftc -Osize
+            
+            # Build ARM64 binary
+            echo "Building ARM64 binary..."
+            swift build --configuration release --arch arm64 -Xswiftc -Osize
+            
+            # Build x86_64 binary
+            echo "Building x86_64 binary..."
+            swift build --configuration release --arch x86_64 -Xswiftc -Osize
+            
+            # Create output directory
+            mkdir -p .build/apple/Products/Release
+            
+            # Combine architectures with lipo
+            echo "Combining architectures with lipo..."
+            lipo -create \
+              .build/arm64-apple-macosx/release/swift-dependency-audit \
+              .build/x86_64-apple-macosx/release/swift-dependency-audit \
+              -output .build/apple/Products/Release/swift-dependency-audit
+            
+            # Verify the universal binary
+            echo "Verifying universal binary..."
+            lipo -info .build/apple/Products/Release/swift-dependency-audit
+            
+            # Strip the final binary
             strip -rSTx .build/apple/Products/Release/swift-dependency-audit
           else
             echo "Building static Linux binary for ${{ matrix.arch }}..."
@@ -138,7 +161,7 @@ jobs:
 
           echo "=== Testing JSON Output ==="
           $BINARY_PATH . --output-format json --no-color --exclude-tests > output.json
-          cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
+          jq . output.json > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
           echo "✅ JSON output is valid"
 
           echo "=== Testing Output Formats ==="
