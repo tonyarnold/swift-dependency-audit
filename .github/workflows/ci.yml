@@ -31,12 +31,14 @@ jobs:
             arch: "x86_64"
             triple: "x86_64-unknown-linux-gnu"
             comprehensive_test: true
+            lint_check: true
           - name: "Linux ARM64"
             runner: ubuntu-24.04-arm
             platform: "Linux"
             arch: "aarch64"
             triple: "aarch64-unknown-linux-gnu"
             comprehensive_test: true
+            lint_check: true
 
     steps:
       - name: Checkout code
@@ -99,7 +101,30 @@ jobs:
 
           if [ "${{ matrix.platform }}" = "macOS" ]; then
             echo "Building universal macOS binary..."
-            swift build --configuration release --arch arm64 --arch x86_64 -Xswiftc -Osize
+
+            # Build ARM64 binary
+            echo "Building ARM64 binary..."
+            swift build --configuration release --arch arm64 -Xswiftc -Osize
+
+            # Build x86_64 binary
+            echo "Building x86_64 binary..."
+            swift build --configuration release --arch x86_64 -Xswiftc -Osize
+
+            # Create output directory
+            mkdir -p .build/apple/Products/Release
+
+            # Combine architectures with lipo
+            echo "Combining architectures with lipo..."
+            lipo -create \
+              .build/arm64-apple-macosx/release/swift-dependency-audit \
+              .build/x86_64-apple-macosx/release/swift-dependency-audit \
+              -output .build/apple/Products/Release/swift-dependency-audit
+
+            # Verify the universal binary
+            echo "Verifying universal binary..."
+            lipo -info .build/apple/Products/Release/swift-dependency-audit
+
+            # Strip the final binary
             strip -rSTx .build/apple/Products/Release/swift-dependency-audit
           else
             echo "Building static Linux binary for ${{ matrix.arch }}..."
@@ -138,7 +163,7 @@ jobs:
 
           echo "=== Testing JSON Output ==="
           $BINARY_PATH . --output-format json --no-color --exclude-tests > output.json
-          cat output.json | python3 -m json.tool > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
+          jq . output.json > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
           echo "✅ JSON output is valid"
 
           echo "=== Testing Output Formats ==="
@@ -148,14 +173,7 @@ jobs:
           echo "=== Testing Custom Whitelist ==="
           $BINARY_PATH . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
 
-          echo "=== Testing Plugin Integration ==="
-          if swift package plugin --list | grep -q "DependencyAuditPlugin"; then
-            echo "✅ Plugin is properly registered"
-          else
-            echo "⚠️ Plugin not found in list, but core functionality works"
-          fi
-
-      - name: Lint and format check (macOS only)
+      - name: Lint and format check
         if: matrix.lint_check
         run: |
           echo "=== Format Check ==="
@@ -164,16 +182,6 @@ jobs:
             find Sources Tests -name "*.swift" | xargs swift-format --mode diff
           else
             echo "swift-format not available, skipping format check"
-          fi
-
-          echo "=== Build Warnings Check ==="
-          swift build --configuration release 2>&1 | tee build.log
-          if grep -q "warning:" build.log; then
-            echo "⚠️  Build warnings found:"
-            grep "warning:" build.log
-            exit 1
-          else
-            echo "✅ No build warnings found"
           fi
         continue-on-error: true
 

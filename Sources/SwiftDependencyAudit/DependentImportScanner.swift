@@ -10,44 +10,10 @@ import Foundation
 
 /// Get the version string, trying multiple sources
 private func getVersion() -> String {
-    // First try to get version from git if available (for development)
-    if let gitVersion = getGitVersion() {
-        return gitVersion
-    }
-    
-    // Fallback to embedded version
-    #if DEBUG
-    return "dev"
-    #else
-    return "1.0.0"  // Fallback for release builds
-    #endif
+    // Always use the build-time generated version from the plugin
+    return SwiftDependencyAuditLib.VERSION
 }
 
-/// Attempt to get version from git (for development builds)
-private func getGitVersion() -> String? {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    process.arguments = ["describe", "--tags", "--always"]
-    
-    let pipe = Pipe()
-    process.standardOutput = pipe
-    process.standardError = Pipe() // Suppress error output
-    
-    do {
-        try process.run()
-        process.waitUntilExit()
-        
-        guard process.terminationStatus == 0 else { return nil }
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Remove 'v' prefix if present
-        return output?.hasPrefix("v") == true ? String(output!.dropFirst()) : output
-    } catch {
-        return nil
-    }
-}
 
 public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
     case terminal = "terminal"
