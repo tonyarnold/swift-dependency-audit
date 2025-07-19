@@ -9,7 +9,7 @@ struct VersionPlugin: BuildToolPlugin {
         
         return [
             .buildCommand(
-                displayName: "Generate Version.swift",
+                displayName: "Generate version information into \(versionFileURL.lastPathComponent)",
                 executable: versionGenerator.url,
                 arguments: [versionFileURL.path(percentEncoded: false)],
                 environment: ProcessInfo.processInfo.environment,
