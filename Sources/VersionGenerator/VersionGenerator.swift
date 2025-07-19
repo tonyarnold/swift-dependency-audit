@@ -64,8 +64,8 @@ struct VersionGenerator: AsyncParsableCommand {
         }
         
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["describe", "--tags", "--always"]
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["git", "describe", "--tags", "--always"]
         
         let pipe = Pipe()
         process.standardOutput = pipe
