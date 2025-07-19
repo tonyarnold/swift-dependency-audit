@@ -31,12 +31,14 @@ jobs:
             arch: "x86_64"
             triple: "x86_64-unknown-linux-gnu"
             comprehensive_test: true
+            lint_check: true
           - name: "Linux ARM64"
             runner: ubuntu-24.04-arm
             platform: "Linux"
             arch: "aarch64"
             triple: "aarch64-unknown-linux-gnu"
             comprehensive_test: true
+            lint_check: true
 
     steps:
       - name: Checkout code
@@ -99,29 +101,29 @@ jobs:
 
           if [ "${{ matrix.platform }}" = "macOS" ]; then
             echo "Building universal macOS binary..."
-            
+
             # Build ARM64 binary
             echo "Building ARM64 binary..."
             swift build --configuration release --arch arm64 -Xswiftc -Osize
-            
+
             # Build x86_64 binary
             echo "Building x86_64 binary..."
             swift build --configuration release --arch x86_64 -Xswiftc -Osize
-            
+
             # Create output directory
             mkdir -p .build/apple/Products/Release
-            
+
             # Combine architectures with lipo
             echo "Combining architectures with lipo..."
             lipo -create \
               .build/arm64-apple-macosx/release/swift-dependency-audit \
               .build/x86_64-apple-macosx/release/swift-dependency-audit \
               -output .build/apple/Products/Release/swift-dependency-audit
-            
+
             # Verify the universal binary
             echo "Verifying universal binary..."
             lipo -info .build/apple/Products/Release/swift-dependency-audit
-            
+
             # Strip the final binary
             strip -rSTx .build/apple/Products/Release/swift-dependency-audit
           else
@@ -178,7 +180,7 @@ jobs:
             echo "⚠️ Plugin not found in list, but core functionality works"
           fi
 
-      - name: Lint and format check (macOS only)
+      - name: Lint and format check
         if: matrix.lint_check
         run: |
           echo "=== Format Check ==="
