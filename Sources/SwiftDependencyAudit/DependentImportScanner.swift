@@ -1,19 +1,20 @@
+// swift-format-ignore: OrderedImports
 #if os(Linux)
-@preconcurrency import Glibc
+    // This needs to remain at the top of the file to ensure that stderr is imported with @preconcurrency
+    @preconcurrency import Glibc
 #else
-import Darwin.C
+    import Darwin.C
 #endif
 
 import ArgumentParser
-import SwiftDependencyAuditLib
 import Foundation
+import SwiftDependencyAuditLib
 
 /// Get the version string, trying multiple sources
 private func getVersion() -> String {
     // Always use the build-time generated version from the plugin
     return SwiftDependencyAuditLib.VERSION
 }
-
 
 public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
     case terminal = "terminal"
@@ -50,7 +51,6 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
 
     @Flag(name: .long, help: "Skip test targets")
     public var excludeTests = false
-
 
     @Flag(name: [.short, .long], help: "Only show problems, suppress success messages")
     public var quiet = false

@@ -10,7 +10,7 @@ public struct ColorOutput {
         }
         return isatty(STDOUT_FILENO) != 0
     }()
-    
+
     nonisolated(unsafe) public static var colorEnabled: Bool = terminalSupportsColor
 
     private enum ANSIColor: String {

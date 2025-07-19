@@ -5,9 +5,9 @@ import PackageDescription
 let swiftDependencyAuditPluginDependencies: [Target.Dependency]
 
 #if os(macOS)
-swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAuditBinary")]
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAuditBinary")]
 #else
-swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
 #endif
 
 let package = Package(
@@ -21,7 +21,7 @@ let package = Package(
     ],
     products: [
         .executable(name: "swift-dependency-audit", targets: ["SwiftDependencyAudit"]),
-        .plugin(name: "DependencyAuditPlugin", targets: ["DependencyAuditPlugin"])
+        .plugin(name: "DependencyAuditPlugin", targets: ["DependencyAuditPlugin"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.1")
@@ -35,7 +35,7 @@ let package = Package(
             name: "SwiftDependencyAudit",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                "SwiftDependencyAuditLib"
+                "SwiftDependencyAuditLib",
             ]
         ),
         .executableTarget(
@@ -63,11 +63,12 @@ let package = Package(
 
 // Conditionally add binary target only on macOS
 #if os(macOS)
-package.targets.append(
-    .binaryTarget(
-        name: "SwiftDependencyAuditBinary",
-        url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/0.1.0/swift-dependency-audit.artifactbundle.zip",
-        checksum: "placeholder_checksum_will_be_updated_by_release_script"
+    package.targets.append(
+        .binaryTarget(
+            name: "SwiftDependencyAuditBinary",
+            url:
+                "https://github.com/tonyarnold/swift-dependency-audit/releases/download/0.1.0/swift-dependency-audit.artifactbundle.zip",
+            checksum: "placeholder_checksum_will_be_updated_by_release_script"
+        )
     )
-)
 #endif

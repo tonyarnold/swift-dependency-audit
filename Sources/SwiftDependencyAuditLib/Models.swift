@@ -4,13 +4,13 @@ public struct DependencyInfo: Sendable {
     public let name: String
     public let type: DependencyType
     public let lineNumber: Int?
-    
+
     public init(name: String, type: DependencyType = .target, lineNumber: Int? = nil) {
         self.name = name
         self.type = type
         self.lineNumber = lineNumber
     }
-    
+
     public enum DependencyType: Sendable {
         case product(packageName: String)
         case target
@@ -23,7 +23,7 @@ public struct Target: Sendable {
     public let dependencies: [String]
     public let dependencyInfo: [DependencyInfo]
     public let path: String?
-    
+
     public init(name: String, type: TargetType, dependencies: [String], path: String?) {
         self.name = name
         self.type = type
@@ -31,7 +31,7 @@ public struct Target: Sendable {
         self.dependencyInfo = dependencies.map { DependencyInfo(name: $0, type: .target) }
         self.path = path
     }
-    
+
     public init(name: String, type: TargetType, dependencyInfo: [DependencyInfo], path: String?) {
         self.name = name
         self.type = type
@@ -39,7 +39,7 @@ public struct Target: Sendable {
         self.dependencyInfo = dependencyInfo
         self.path = path
     }
-    
+
     public enum TargetType: Sendable {
         case executable
         case library
@@ -55,14 +55,14 @@ public struct Product: Sendable {
     public let type: ProductType
     public let targets: [String]
     public let packageName: String
-    
+
     public init(name: String, type: ProductType, targets: [String], packageName: String) {
         self.name = name
         self.type = type
         self.targets = targets
         self.packageName = packageName
     }
-    
+
     public enum ProductType: Sendable {
         case library
         case executable
@@ -74,7 +74,7 @@ public struct ExternalPackageDependency: Sendable {
     public let packageName: String
     public let url: String?
     public let path: String?
-    
+
     public init(packageName: String, url: String? = nil, path: String? = nil) {
         self.packageName = packageName
         self.url = url
@@ -86,7 +86,7 @@ public struct ExternalPackage: Sendable {
     public let name: String
     public let products: [Product]
     public let path: String
-    
+
     public init(name: String, products: [Product], path: String) {
         self.name = name
         self.products = products
@@ -101,8 +101,11 @@ public struct PackageInfo: Sendable {
     public let products: [Product]
     public let externalDependencies: [ExternalPackageDependency]
     public let path: String
-    
-    public init(name: String, targets: [Target], dependencies: [String], products: [Product] = [], externalDependencies: [ExternalPackageDependency] = [], path: String) {
+
+    public init(
+        name: String, targets: [Target], dependencies: [String], products: [Product] = [],
+        externalDependencies: [ExternalPackageDependency] = [], path: String
+    ) {
         self.name = name
         self.targets = targets
         self.dependencies = dependencies
@@ -116,7 +119,7 @@ public struct ImportInfo: Sendable, Hashable {
     public let moduleName: String
     public let isTestable: Bool
     public let lineNumber: Int?
-    
+
     public init(moduleName: String, isTestable: Bool = false, lineNumber: Int? = nil) {
         self.moduleName = moduleName
         self.isTestable = isTestable
@@ -127,7 +130,7 @@ public struct ImportInfo: Sendable, Hashable {
 public struct SourceFile: Sendable {
     public let path: String
     public let imports: Set<ImportInfo>
-    
+
     public init(path: String, imports: Set<ImportInfo>) {
         self.path = path
         self.imports = imports
@@ -138,7 +141,7 @@ public struct ProductSatisfiedDependency: Sendable {
     public let importName: String
     public let productName: String
     public let packageName: String
-    
+
     public init(importName: String, productName: String, packageName: String) {
         self.importName = importName
         self.productName = productName
@@ -150,7 +153,7 @@ public struct RedundantDirectDependency: Sendable {
     public let targetName: String
     public let providingProduct: String
     public let packageName: String
-    
+
     public init(targetName: String, providingProduct: String, packageName: String) {
         self.targetName = targetName
         self.providingProduct = providingProduct
@@ -166,16 +169,20 @@ public struct AnalysisResult: Sendable {
     public let productSatisfiedDependencies: [ProductSatisfiedDependency]
     public let redundantDirectDependencies: [RedundantDirectDependency]
     public let sourceFiles: [SourceFile]
-    
+
     public var hasIssues: Bool {
         !missingDependencies.isEmpty
     }
-    
+
     public var hasWarnings: Bool {
         !redundantDirectDependencies.isEmpty || !unusedDependencies.isEmpty
     }
-    
-    public init(target: Target, missingDependencies: Set<String>, unusedDependencies: Set<String>, correctDependencies: Set<String>, productSatisfiedDependencies: [ProductSatisfiedDependency] = [], redundantDirectDependencies: [RedundantDirectDependency] = [], sourceFiles: [SourceFile]) {
+
+    public init(
+        target: Target, missingDependencies: Set<String>, unusedDependencies: Set<String>,
+        correctDependencies: Set<String>, productSatisfiedDependencies: [ProductSatisfiedDependency] = [],
+        redundantDirectDependencies: [RedundantDirectDependency] = [], sourceFiles: [SourceFile]
+    ) {
         self.target = target
         self.missingDependencies = missingDependencies
         self.unusedDependencies = unusedDependencies
@@ -189,12 +196,12 @@ public struct AnalysisResult: Sendable {
 public struct PackageAnalysis: Sendable, Codable {
     public let packageName: String
     public let targets: [TargetAnalysis]
-    
+
     public init(packageName: String, targets: [TargetAnalysis]) {
         self.packageName = packageName
         self.targets = targets
     }
-    
+
     public struct TargetAnalysis: Sendable, Codable {
         public let name: String
         public let missingDependencies: [String]
@@ -202,34 +209,38 @@ public struct PackageAnalysis: Sendable, Codable {
         public let correctDependencies: [String]
         public let productSatisfiedDependencies: [ProductSatisfiedDependencyInfo]
         public let redundantDirectDependencies: [RedundantDirectDependencyInfo]
-        
+
         public init(from result: AnalysisResult) {
             self.name = result.target.name
             self.missingDependencies = Array(result.missingDependencies).sorted()
             self.unusedDependencies = Array(result.unusedDependencies).sorted()
             self.correctDependencies = Array(result.correctDependencies).sorted()
-            self.productSatisfiedDependencies = result.productSatisfiedDependencies.map { ProductSatisfiedDependencyInfo(from: $0) }.sorted { $0.importName < $1.importName }
-            self.redundantDirectDependencies = result.redundantDirectDependencies.map { RedundantDirectDependencyInfo(from: $0) }.sorted { $0.targetName < $1.targetName }
+            self.productSatisfiedDependencies = result.productSatisfiedDependencies.map {
+                ProductSatisfiedDependencyInfo(from: $0)
+            }.sorted { $0.importName < $1.importName }
+            self.redundantDirectDependencies = result.redundantDirectDependencies.map {
+                RedundantDirectDependencyInfo(from: $0)
+            }.sorted { $0.targetName < $1.targetName }
         }
     }
-    
+
     public struct ProductSatisfiedDependencyInfo: Sendable, Codable {
         public let importName: String
         public let productName: String
         public let packageName: String
-        
+
         public init(from dependency: ProductSatisfiedDependency) {
             self.importName = dependency.importName
             self.productName = dependency.productName
             self.packageName = dependency.packageName
         }
     }
-    
+
     public struct RedundantDirectDependencyInfo: Sendable, Codable {
         public let targetName: String
         public let providingProduct: String
         public let packageName: String
-        
+
         public init(from dependency: RedundantDirectDependency) {
             self.targetName = dependency.targetName
             self.providingProduct = dependency.providingProduct
@@ -243,7 +254,7 @@ public enum ScannerError: Error, LocalizedError {
     case invalidPackageFile(String)
     case sourceDirectoryNotFound(String)
     case fileReadError(String, Error)
-    
+
     public var errorDescription: String? {
         switch self {
         case .packageNotFound(let path):
