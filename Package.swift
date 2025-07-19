@@ -1,6 +1,15 @@
 // swift-tools-version: 6.1
 import PackageDescription
 
+// Conditional plugin dependencies based on platform
+let swiftDependencyAuditPluginDependencies: [Target.Dependency]
+
+#if os(macOS)
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAuditBinary")]
+#else
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
+#endif
+
 let package = Package(
     name: "SwiftDependencyAudit",
     platforms: [
@@ -42,7 +51,7 @@ let package = Package(
         .plugin(
             name: "DependencyAuditPlugin",
             capability: .buildTool(),
-            dependencies: ["SwiftDependencyAudit"]
+            dependencies: swiftDependencyAuditPluginDependencies
         ),
         .plugin(
             name: "VersionPlugin",
@@ -51,3 +60,15 @@ let package = Package(
         ),
     ]
 )
+
+// Conditionally add binary target only on macOS
+#if os(macOS)
+    package.targets.append(
+        .binaryTarget(
+            name: "SwiftDependencyAuditBinary",
+            url:
+                "https://github.com/tonyarnold/swift-dependency-audit/releases/download/v1.4.8/swift-dependency-audit.artifactbundle.zip",
+            checksum: "59676a504729fb6e81caefbc5d2d3cecfd139964ae472bda9b361e600ff2c03e"
+        )
+    )
+#endif
