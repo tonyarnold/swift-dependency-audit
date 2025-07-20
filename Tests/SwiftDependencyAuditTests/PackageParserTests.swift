@@ -169,4 +169,133 @@ struct PackageParserTests {
         let libTarget = packageInfo.targets.first { $0.name == "LibraryTarget" }
         #expect(libTarget?.path == "/Sources/MyCustomPath")
     }
+
+    @Test("Parse package with constant-based dependencies")
+    func testConstantBasedDependencies() async throws {
+        let packageContent = """
+            // swift-tools-version: 6.0
+            import PackageDescription
+
+            private let TCA = Target.Dependency.product(
+                name: "ComposableArchitecture",
+                package: "swift-composable-architecture"
+            )
+            
+            private let AsyncAlgorithms = Target.Dependency.product(
+                name: "AsyncAlgorithms",
+                package: "swift-async-algorithms"
+            )
+
+            let package = Package(
+                name: "ConstantDepsPackage",
+                dependencies: [
+                    .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.0.0"),
+                    .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
+                ],
+                targets: [
+                    .target(
+                        name: "MyFeature",
+                        dependencies: [
+                            TCA,
+                            AsyncAlgorithms
+                        ]
+                    ),
+                    .testTarget(
+                        name: "MyFeatureTests",
+                        dependencies: [
+                            "MyFeature",
+                            TCA
+                        ]
+                    )
+                ]
+            )
+            """
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("ConstantDepsPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "ConstantDepsPackage")
+        #expect(packageInfo.targets.count == 2)
+
+        // Check MyFeature target
+        let myFeature = packageInfo.targets.first { $0.name == "MyFeature" }
+        #expect(myFeature != nil)
+        #expect(myFeature?.type == .library)
+        #expect(myFeature?.dependencies.count == 2)
+        #expect(myFeature?.dependencies.contains("ComposableArchitecture") == true)
+        #expect(myFeature?.dependencies.contains("AsyncAlgorithms") == true)
+
+        // Check MyFeatureTests target
+        let myFeatureTests = packageInfo.targets.first { $0.name == "MyFeatureTests" }
+        #expect(myFeatureTests != nil)
+        #expect(myFeatureTests?.type == .test)
+        #expect(myFeatureTests?.dependencies.count == 2)
+        #expect(myFeatureTests?.dependencies.contains("MyFeature") == true)
+        #expect(myFeatureTests?.dependencies.contains("ComposableArchitecture") == true)
+    }
+
+    @Test("Parse package with mixed dependency styles")
+    func testMixedDependencyStyles() async throws {
+        let packageContent = """
+            import PackageDescription
+
+            private let CustomDep = Target.Dependency.product(
+                name: "CustomFramework",
+                package: "custom-framework"
+            )
+
+            let package = Package(
+                name: "MixedStylePackage",
+                dependencies: [
+                    .package(url: "https://github.com/example/custom-framework", from: "1.0.0"),
+                    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
+                ],
+                targets: [
+                    .target(
+                        name: "MainTarget",
+                        dependencies: [
+                            CustomDep,
+                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                            "InternalDependency"
+                        ]
+                    )
+                ]
+            )
+            """
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("MixedStylePackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "MixedStylePackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let mainTarget = packageInfo.targets.first
+        #expect(mainTarget?.name == "MainTarget")
+        #expect(mainTarget?.dependencies.count == 3)
+        #expect(mainTarget?.dependencies.contains("CustomFramework") == true)
+        #expect(mainTarget?.dependencies.contains("ArgumentParser") == true)
+        #expect(mainTarget?.dependencies.contains("InternalDependency") == true)
+    }
 }

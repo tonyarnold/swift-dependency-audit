@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Constant-Based Dependency Declarations**
+  - Support for dependency constants like `private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")`
+  - Resolves constant references in dependency arrays (e.g., `dependencies: [TCA]`)
+  - Works with all access levels (`private`, `public`, `internal`, `fileprivate`)
+  - Maintains full backward compatibility with existing dependency declaration methods
+
 ## [v1.4.0]
 
 ### Changed

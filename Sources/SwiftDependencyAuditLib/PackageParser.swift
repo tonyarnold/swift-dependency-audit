@@ -129,6 +129,59 @@ public actor PackageParser {
         }
     }
 
+    // Variable declaration pattern for dependency constants like:
+    // private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+    private var dependencyConstantPattern: Regex<(Substring, Substring, Substring, Substring)> {
+        Regex {
+            ChoiceOf {
+                "private"
+                "public"
+                "internal"
+                "fileprivate"
+            }
+            OneOrMore(.whitespace)
+            "let"
+            OneOrMore(.whitespace)
+            Capture {
+                identifier
+            }
+            ZeroOrMore(.whitespace)
+            "="
+            ZeroOrMore(.whitespace)
+            "Target.Dependency.product"
+            ZeroOrMore(.whitespace)
+            "("
+            ZeroOrMore(.whitespace)
+            "name:"
+            ZeroOrMore(.whitespace)
+            "\""
+            Capture {
+                ZeroOrMore {
+                    /[^"\\]/
+                }
+            }
+            "\""
+            ZeroOrMore(.whitespace)
+            ","
+            ZeroOrMore(.whitespace)
+            "package:"
+            ZeroOrMore(.whitespace)
+            "\""
+            Capture {
+                ZeroOrMore {
+                    /[^"\\]/
+                }
+            }
+            "\""
+            ZeroOrMore(.whitespace)
+            ChoiceOf {
+                ")"
+                ",)"
+            }
+        }
+        .dotMatchesNewlines()
+    }
+
     // Variable declaration pattern for let targets: [Target] = [...]
     private var targetsVariablePattern: Regex<Substring> {
         Regex {
@@ -335,6 +388,33 @@ public actor PackageParser {
             }
         }
         return nil
+    }
+
+    // Resolve dependency constants like: private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+    private func resolveDependencyConstant(named variableName: String, in content: String) -> DependencyInfo? {
+        for match in content.matches(of: dependencyConstantPattern) {
+            let varName = String(match.1)
+            if varName == variableName {
+                let productName = String(match.2)
+                let packageName = String(match.3)
+                return DependencyInfo(name: productName, type: .product(packageName: packageName), lineNumber: nil)
+            }
+        }
+        return nil
+    }
+
+    // Build a dictionary of all dependency constants in the package for quick lookup
+    private func buildDependencyConstantsMap(from content: String) -> [String: DependencyInfo] {
+        var constantsMap: [String: DependencyInfo] = [:]
+        
+        for match in content.matches(of: dependencyConstantPattern) {
+            let varName = String(match.1)
+            let productName = String(match.2)
+            let packageName = String(match.3)
+            constantsMap[varName] = DependencyInfo(name: productName, type: .product(packageName: packageName), lineNumber: nil)
+        }
+        
+        return constantsMap
     }
 
     // Extract content from variable array declarations using bracket counting
@@ -772,6 +852,9 @@ public actor PackageParser {
     ) -> [DependencyInfo] {
         var dependencyInfos: [DependencyInfo] = []
 
+        // Build a map of dependency constants for lookup
+        let constantsMap = buildDependencyConstantsMap(from: packageContent)
+
         // Parse product dependencies with their package information
         let productRegex = /\.product\s*\(\s*name:\s*"([^"]+)".*?package:\s*"([^"]+)"/
         for match in dependenciesStr.matches(of: productRegex) {
@@ -787,8 +870,22 @@ public actor PackageParser {
         let components = dependenciesStr.components(separatedBy: ",")
         for component in components {
             let trimmed = component.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Match simple quoted strings that aren't part of .product() calls
-            if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && !trimmed.contains(".product") {
+            
+            // Check for constant references (identifiers without quotes)
+            if !trimmed.hasPrefix("\"") && !trimmed.contains(".product") && !trimmed.isEmpty {
+                // Remove any trailing comments or commas
+                let constantName = trimmed.components(separatedBy: CharacterSet(charactersIn: " \t\n,")).first ?? trimmed
+                
+                if let constantInfo = constantsMap[constantName] {
+                    // Found a dependency constant - resolve it to the actual dependency
+                    let lineNumber = findConstantLineNumber(
+                        constantName: constantName, targetName: targetName, in: packageContent)
+                    let resolvedInfo = DependencyInfo(name: constantInfo.name, type: constantInfo.type, lineNumber: lineNumber)
+                    dependencyInfos.append(resolvedInfo)
+                }
+            }
+            // Match simple quoted strings that aren't part of .product() calls  
+            else if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && !trimmed.contains(".product") {
                 let quoted = String(trimmed.dropFirst().dropLast())
                 let lineNumber = findDependencyLineNumber(
                     dependency: quoted, targetName: targetName, in: packageContent)
@@ -797,6 +894,59 @@ public actor PackageParser {
         }
 
         return dependencyInfos
+    }
+
+    private func findConstantLineNumber(constantName: String, targetName: String, in content: String) -> Int? {
+        let lines = content.components(separatedBy: .newlines)
+
+        // Find the target by name first, then look for the constant reference within reasonable distance
+        var targetNameLine: Int?
+
+        // First pass: find the line with our target name declaration
+        for (index, line) in lines.enumerated() {
+            if line.contains("name: \"\(targetName)\"") {
+                // Verify this is actually a target declaration by checking the previous line
+                if index > 0 {
+                    let previousLine = lines[index - 1]
+                    if previousLine.contains(".target(") || previousLine.contains(".executableTarget(")
+                        || previousLine.contains(".testTarget(")
+                    {
+                        targetNameLine = index
+                        break
+                    }
+                }
+            }
+        }
+
+        // If we found the target name, look for the constant reference in the following lines
+        if let targetLine = targetNameLine {
+            // Search in a reasonable range after the target name (usually within 50 lines)
+            let searchStart = targetLine
+            let searchEnd = min(lines.count, targetLine + 50)
+
+            for lineIndex in searchStart..<searchEnd {
+                let line = lines[lineIndex]
+
+                // Look for the constant name as a standalone identifier
+                if line.contains(constantName) && (line.contains("dependencies:") || line.contains(",")) {
+                    // Make sure it's the constant name and not part of another word
+                    let components = line.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    if components.contains(constantName) {
+                        return lineIndex + 1
+                    }
+                }
+
+                // Stop if we hit another target declaration (indicates we've gone too far)
+                if lineIndex > targetLine
+                    && (line.contains(".target(") || line.contains(".executableTarget(")
+                        || line.contains(".testTarget("))
+                {
+                    break
+                }
+            }
+        }
+
+        return nil
     }
 
     private func findDependencyLineNumber(dependency: String, targetName: String, in content: String) -> Int? {
