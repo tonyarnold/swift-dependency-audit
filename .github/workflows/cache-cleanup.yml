@@ -47,12 +47,12 @@ jobs:
         echo "Cleaning up caches older than ${{ steps.params.outputs.cleanup_date }}"
         
         # Get list of cache IDs older than specified date
+        CLEANUP_DATE="${{ steps.params.outputs.cleanup_date }}"
         CACHE_IDS=$(gh api \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "/repos/${{ github.repository }}/actions/caches" \
-          --jq --arg cleanup_date "${{ steps.params.outputs.cleanup_date }}" \
-          '.actions_caches[] | select(.created_at < $cleanup_date) | .id')
+          --jq --arg cleanup_date "$CLEANUP_DATE" '.actions_caches[] | select(.created_at < $cleanup_date) | .id')
         
         if [ -z "$CACHE_IDS" ]; then
           echo "No old caches found to clean up"
