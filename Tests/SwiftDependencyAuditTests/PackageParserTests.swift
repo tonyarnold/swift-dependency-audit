@@ -172,44 +172,9 @@ struct PackageParserTests {
 
     @Test("Parse package with constant-based dependencies")
     func testConstantBasedDependencies() async throws {
-        let packageContent = """
-            // swift-tools-version: 6.0
-            import PackageDescription
-
-            private let TCA = Target.Dependency.product(
-                name: "ComposableArchitecture",
-                package: "swift-composable-architecture"
-            )
-            
-            private let AsyncAlgorithms = Target.Dependency.product(
-                name: "AsyncAlgorithms",
-                package: "swift-async-algorithms"
-            )
-
-            let package = Package(
-                name: "ConstantDepsPackage",
-                dependencies: [
-                    .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.0.0"),
-                    .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0")
-                ],
-                targets: [
-                    .target(
-                        name: "MyFeature",
-                        dependencies: [
-                            TCA,
-                            AsyncAlgorithms
-                        ]
-                    ),
-                    .testTarget(
-                        name: "MyFeatureTests",
-                        dependencies: [
-                            "MyFeature",
-                            TCA
-                        ]
-                    )
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(forResource: "ConstantDepsPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
         let packageDir = tempDir.appendingPathComponent("ConstantDepsPackage_\(UUID().uuidString)")
@@ -247,32 +212,9 @@ struct PackageParserTests {
 
     @Test("Parse package with mixed dependency styles")
     func testMixedDependencyStyles() async throws {
-        let packageContent = """
-            import PackageDescription
-
-            private let CustomDep = Target.Dependency.product(
-                name: "CustomFramework",
-                package: "custom-framework"
-            )
-
-            let package = Package(
-                name: "MixedStylePackage",
-                dependencies: [
-                    .package(url: "https://github.com/example/custom-framework", from: "1.0.0"),
-                    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
-                ],
-                targets: [
-                    .target(
-                        name: "MainTarget",
-                        dependencies: [
-                            CustomDep,
-                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                            "InternalDependency"
-                        ]
-                    )
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(forResource: "MixedStylePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
         let packageDir = tempDir.appendingPathComponent("MixedStylePackage_\(UUID().uuidString)")
