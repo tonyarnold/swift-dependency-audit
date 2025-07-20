@@ -173,7 +173,8 @@ struct PackageParserTests {
     @Test("Parse package with constant-based dependencies")
     func testConstantBasedDependencies() async throws {
         let testBundle = Bundle.module
-        let fixtureURL = testBundle.url(forResource: "ConstantDepsPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let fixtureURL = testBundle.url(
+            forResource: "ConstantDepsPackage", withExtension: "swift", subdirectory: "Fixtures")!
         let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
@@ -213,7 +214,8 @@ struct PackageParserTests {
     @Test("Parse package with mixed dependency styles")
     func testMixedDependencyStyles() async throws {
         let testBundle = Bundle.module
-        let fixtureURL = testBundle.url(forResource: "MixedStylePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let fixtureURL = testBundle.url(
+            forResource: "MixedStylePackage", withExtension: "swift", subdirectory: "Fixtures")!
         let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory

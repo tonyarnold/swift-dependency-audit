@@ -9,7 +9,7 @@ let package = Package(
     name: "MixedStylePackage",
     dependencies: [
         .package(url: "https://github.com/example/custom-framework", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -17,7 +17,7 @@ let package = Package(
             dependencies: [
                 CustomDep,
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                "InternalDependency"
+                "InternalDependency",
             ]
         )
     ]

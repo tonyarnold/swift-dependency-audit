@@ -406,14 +406,15 @@ public actor PackageParser {
     // Build a dictionary of all dependency constants in the package for quick lookup
     private func buildDependencyConstantsMap(from content: String) -> [String: DependencyInfo] {
         var constantsMap: [String: DependencyInfo] = [:]
-        
+
         for match in content.matches(of: dependencyConstantPattern) {
             let varName = String(match.1)
             let productName = String(match.2)
             let packageName = String(match.3)
-            constantsMap[varName] = DependencyInfo(name: productName, type: .product(packageName: packageName), lineNumber: nil)
+            constantsMap[varName] = DependencyInfo(
+                name: productName, type: .product(packageName: packageName), lineNumber: nil)
         }
-        
+
         return constantsMap
     }
 
@@ -870,21 +871,23 @@ public actor PackageParser {
         let components = dependenciesStr.components(separatedBy: ",")
         for component in components {
             let trimmed = component.trimmingCharacters(in: .whitespacesAndNewlines)
-            
+
             // Check for constant references (identifiers without quotes)
             if !trimmed.hasPrefix("\"") && !trimmed.contains(".product") && !trimmed.isEmpty {
                 // Remove any trailing comments or commas
-                let constantName = trimmed.components(separatedBy: CharacterSet(charactersIn: " \t\n,")).first ?? trimmed
-                
+                let constantName =
+                    trimmed.components(separatedBy: CharacterSet(charactersIn: " \t\n,")).first ?? trimmed
+
                 if let constantInfo = constantsMap[constantName] {
                     // Found a dependency constant - resolve it to the actual dependency
                     let lineNumber = findConstantLineNumber(
                         constantName: constantName, targetName: targetName, in: packageContent)
-                    let resolvedInfo = DependencyInfo(name: constantInfo.name, type: constantInfo.type, lineNumber: lineNumber)
+                    let resolvedInfo = DependencyInfo(
+                        name: constantInfo.name, type: constantInfo.type, lineNumber: lineNumber)
                     dependencyInfos.append(resolvedInfo)
                 }
             }
-            // Match simple quoted strings that aren't part of .product() calls  
+            // Match simple quoted strings that aren't part of .product() calls
             else if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && !trimmed.contains(".product") {
                 let quoted = String(trimmed.dropFirst().dropLast())
                 let lineNumber = findDependencyLineNumber(
