@@ -17,19 +17,24 @@ struct IntegrationTests {
         let packageInfo = try await parser.parsePackage(at: tempDir.path)
 
         #expect(packageInfo.name == "TestPackage")
-        #expect(packageInfo.targets.count == 2)
+        #expect(packageInfo.targets.count == 3)
 
         // Analyze the package (include test targets)
         let analyzer = DependencyAnalyzer()
         let results = try await analyzer.analyzePackage(packageInfo, excludeTests: false)
 
-        #expect(results.count == 2)
+        #expect(results.count == 3)
 
         // Check main target (should have correct dependencies)
         let mainTarget = results.first { $0.target.name == "TestPackage" }
         #expect(mainTarget?.correctDependencies.contains("ArgumentParser") == true)
         // Main target might have unused dependencies due to package-level vs target-level dependency parsing
         // This is acceptable as the tool correctly identifies used vs declared dependencies
+
+        // Check target with custom path (should have missing dependency)
+        let customPathTarget = results.first { $0.target.name == "CustomPathTarget" }
+        #expect(customPathTarget?.missingDependencies.contains("ArgumentParser") == true)
+        #expect(customPathTarget!.hasIssues)
 
         // Check test target (should have missing dependency)
         let testTarget = results.first { $0.target.name == "TestPackageTests" }
@@ -153,6 +158,11 @@ struct IntegrationTests {
                             .product(name: "ArgumentParser", package: "swift-argument-parser")
                         ]
                     ),
+                    .target(
+                        name: "CustomPathTarget",
+                        dependencies: [],
+                        path: "/Sources/MyCustomPath"
+                    ),
                     .testTarget(
                         name: "TestPackageTests",
                         dependencies: ["TestPackage"]
@@ -168,6 +178,12 @@ struct IntegrationTests {
         try FileManager.default.createDirectory(at: mainDir, withIntermediateDirectories: true)
         try "import ArgumentParser\nprint(\"Hello\")".write(
             to: mainDir.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
+
+      // Create with custom path
+      let customPathDir = tempDir.appendingPathComponent("Sources/MyCustomPath")
+      try FileManager.default.createDirectory(at: customPathDir, withIntermediateDirectories: true)
+      try "import ArgumentParser\nprint(\"Hello\")".write(
+        to: customPathDir.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
 
         // Create test target with missing dependency
         let testDir = tempDir.appendingPathComponent("Tests/TestPackageTests")

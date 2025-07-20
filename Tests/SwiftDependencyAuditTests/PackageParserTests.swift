@@ -134,4 +134,39 @@ struct PackageParserTests {
 
         #expect(packageInfo.name == "My-Special_Package123")
     }
+
+  @Test("Parse package name with custom path")
+  func testPackagePathParsing() async throws {
+    let packageContent = """
+            import PackageDescription
+            
+            let package = Package(
+                name: "MyCustomPathPackage",
+                targets: [
+                    .target(
+                        name: "LibraryTarget",
+                        dependencies: ["Dep1"],
+                        path: "/Sources/MyCustomPath"
+                    ),
+                ]
+            )
+            """
+
+    let tempDir = FileManager.default.temporaryDirectory
+    let packageDir = tempDir.appendingPathComponent("SpecialPackage_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+    let packageFile = packageDir.appendingPathComponent("Package.swift")
+    try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+    defer {
+      try? FileManager.default.removeItem(at: packageDir)
+    }
+
+    let parser = PackageParser()
+    let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+    let libTarget = packageInfo.targets.first { $0.name == "LibraryTarget" }
+    #expect(libTarget?.path == "/Sources/MyCustomPath")
+  }
 }
