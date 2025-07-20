@@ -179,11 +179,11 @@ struct IntegrationTests {
         try "import ArgumentParser\nprint(\"Hello\")".write(
             to: mainDir.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
 
-      // Create with custom path
-      let customPathDir = tempDir.appendingPathComponent("Sources/MyCustomPath")
-      try FileManager.default.createDirectory(at: customPathDir, withIntermediateDirectories: true)
-      try "import ArgumentParser\nprint(\"Hello\")".write(
-        to: customPathDir.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
+        // Create with custom path
+        let customPathDir = tempDir.appendingPathComponent("Sources/MyCustomPath")
+        try FileManager.default.createDirectory(at: customPathDir, withIntermediateDirectories: true)
+        try "import ArgumentParser\nprint(\"Hello\")".write(
+            to: customPathDir.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
 
         // Create test target with missing dependency
         let testDir = tempDir.appendingPathComponent("Tests/TestPackageTests")

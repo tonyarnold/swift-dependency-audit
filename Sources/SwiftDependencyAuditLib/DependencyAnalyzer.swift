@@ -22,7 +22,11 @@ public actor DependencyAnalyzer {
 
         // Scan source files for imports
         let sourceFiles = try await importScanner.scanDirectory(
-            at: packageInfo.path, targetName: target.name, customWhitelist: customWhitelist)
+            at: packageInfo.path,
+            targetName: target.name,
+            targetPathOverride: target.path,
+            customWhitelist: customWhitelist
+        )
 
         // Collect all unique imports from source files
         var allImports = Set<String>()

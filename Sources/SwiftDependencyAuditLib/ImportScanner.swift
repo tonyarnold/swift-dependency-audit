@@ -73,17 +73,28 @@ public actor ImportScanner {
         return imports
     }
 
-    public func scanDirectory(at path: String, targetName: String, customWhitelist: Set<String> = []) async throws
-        -> [SourceFile]
-    {
+    public func scanDirectory(
+        at path: String,
+        targetName: String,
+        targetPathOverride: String?,
+        customWhitelist: Set<String> = []
+    ) async throws -> [SourceFile] {
         let fileManager = FileManager.default
 
-        // Try Sources directory first
-        var sourcePath = URL(fileURLWithPath: path).appendingPathComponent("Sources").appendingPathComponent(targetName)
+        var sourcePath: URL
+        // If a custom path overide is provided use that for the source path, othereise use the standard path name based on target name
+        if let targetPathOverride {
+            sourcePath = URL(fileURLWithPath: path).appendingPathComponent(targetPathOverride)
+        } else {
+            // Try Sources directory first
+            sourcePath = URL(fileURLWithPath: path).appendingPathComponent("Sources").appendingPathComponent(targetName)
 
-        // If not found in Sources, try Tests directory for test targets
-        if !fileManager.fileExists(atPath: sourcePath.path) {
-            sourcePath = URL(fileURLWithPath: path).appendingPathComponent("Tests").appendingPathComponent(targetName)
+            // If not found in Sources, try Tests directory for test targets
+            if !fileManager.fileExists(atPath: sourcePath.path) {
+                sourcePath = URL(fileURLWithPath: path)
+                    .appendingPathComponent("Tests")
+                    .appendingPathComponent(targetName)
+            }
         }
 
         guard fileManager.fileExists(atPath: sourcePath.path) else {
