@@ -82,7 +82,7 @@ public actor ImportScanner {
         let fileManager = FileManager.default
 
         var sourcePath: URL
-        // If a custom path overide is provided use that for the source path, othereise use the standard path name based on target name
+        // If a custom path override is provided, use that for the source path. Otherwise, use the standard path name based on target name.
         if let targetPathOverride {
             sourcePath = URL(fileURLWithPath: path).appendingPathComponent(targetPathOverride)
         } else {
