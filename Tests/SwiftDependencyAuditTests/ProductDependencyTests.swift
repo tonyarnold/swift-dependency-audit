@@ -6,22 +6,10 @@ import Testing
 struct ProductDependencyTests {
 
     @Test func testProductParsing() async throws {
-        let packageContent = """
-            // swift-tools-version: 6.1
-            import PackageDescription
-
-            let products: [Product] = [
-                .library(name: "NetworkKit", targets: ["NetworkClient", "NetworkCore"]),
-                .library(name: "DataProcessor", targets: ["DataModels", "DataStorage"]),
-                .executable(name: "CLITool", targets: ["CLIMain"])
-            ]
-
-            let package = Package(
-                name: "ExamplePackage",
-                products: products,
-                targets: []
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "ProductTestPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let parser = PackageParser()
         let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp/test")
@@ -45,22 +33,10 @@ struct ProductDependencyTests {
     }
 
     @Test func testExternalDependencyParsing() async throws {
-        let packageContent = """
-            // swift-tools-version: 6.1
-            import PackageDescription
-
-            let dependencies: [Package.Dependency] = [
-                .package(url: "https://github.com/example/swift-algorithms.git", exact: "1.2.0"),
-                .package(path: "../UtilityLibrary"),
-                .package(url: "https://github.com/example/networking-kit.git", exact: "2.1.0")
-            ]
-
-            let package = Package(
-                name: "TestPackage",
-                dependencies: dependencies,
-                targets: []
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "ExternalDependencyPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let parser = PackageParser()
         let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp/test")
