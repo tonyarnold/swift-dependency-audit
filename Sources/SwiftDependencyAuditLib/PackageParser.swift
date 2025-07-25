@@ -133,13 +133,16 @@ public actor PackageParser {
     // private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")
     private var dependencyConstantPattern: Regex<(Substring, Substring, Substring, Substring)> {
         Regex {
-            ChoiceOf {
-                "private"
-                "public"
-                "internal"
-                "fileprivate"
+            Optionally {
+                ChoiceOf {
+                    "private"
+                    "fileprivate"
+                    "internal"
+                    "public"
+                    "open"
+                }
+                OneOrMore(.whitespace)
             }
-            OneOrMore(.whitespace)
             "let"
             OneOrMore(.whitespace)
             Capture {
@@ -176,7 +179,11 @@ public actor PackageParser {
             ZeroOrMore(.whitespace)
             ChoiceOf {
                 ")"
-                ",)"
+                Regex {
+                    ","
+                    ZeroOrMore(.any)
+                    ")"
+                }
             }
         }
         .dotMatchesNewlines()

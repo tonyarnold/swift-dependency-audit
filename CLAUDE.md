@@ -157,3 +157,4 @@ See PROJECT_PLAN.md for detailed implementation phases and technical specificati
 ## Claude Memories
 
 - It's 2025, stop appending 2024 to your searches.
+- Don't embed Package.swift test fixtures inside the test source files. Please add them to the Fixtures directory that already exists and access them from there within the tests.

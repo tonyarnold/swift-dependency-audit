@@ -242,4 +242,162 @@ struct PackageParserTests {
         #expect(mainTarget?.dependencies.contains("ArgumentParser") == true)
         #expect(mainTarget?.dependencies.contains("InternalDependency") == true)
     }
+
+    @Test("Parse package with constants without access modifiers")
+    func testConstantsWithoutAccessModifiers() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "NoAccessModifierPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("NoAccessModifierPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "NoAccessModifierPackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let myTarget = packageInfo.targets.first
+        #expect(myTarget?.name == "MyTarget")
+        #expect(myTarget?.dependencies.count == 2)
+        #expect(myTarget?.dependencies.contains("ComposableArchitecture") == true)
+        #expect(myTarget?.dependencies.contains("AsyncAlgorithms") == true)
+    }
+
+    @Test("Parse package with mixed access modifier styles")
+    func testMixedAccessModifierStyles() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "MixedAccessPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("MixedAccessPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "MixedAccessPackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let mixedTarget = packageInfo.targets.first
+        #expect(mixedTarget?.name == "MixedTarget")
+        #expect(mixedTarget?.dependencies.count == 6)
+        #expect(mixedTarget?.dependencies.contains("Private") == true)
+        #expect(mixedTarget?.dependencies.contains("Fileprivate") == true)
+        #expect(mixedTarget?.dependencies.contains("Internal") == true)
+        #expect(mixedTarget?.dependencies.contains("Public") == true)
+        #expect(mixedTarget?.dependencies.contains("Open") == true)
+        #expect(mixedTarget?.dependencies.contains("NoModifier") == true)
+    }
+
+    @Test("Parse package with edge cases in constant parsing")
+    func testConstantParsingEdgeCases() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "EdgeCasePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("EdgeCasePackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "EdgeCasePackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let edgeTarget = packageInfo.targets.first
+        #expect(edgeTarget?.name == "EdgeTarget")
+        #expect(edgeTarget?.dependencies.count == 3)
+        #expect(edgeTarget?.dependencies.contains("Compact") == true)
+        #expect(edgeTarget?.dependencies.contains("StandardProduct") == true)
+        #expect(edgeTarget?.dependencies.contains("LocalTarget") == true)
+    }
+
+    @Test("Parse package with constants having extra parameters")
+    func testConstantsWithExtraParameters() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "ConditionalPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("ConditionalPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "ConditionalPackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let conditionalTarget = packageInfo.targets.first
+        #expect(conditionalTarget?.name == "ConditionalTarget")
+        #expect(conditionalTarget?.dependencies.count == 1)
+        #expect(conditionalTarget?.dependencies.contains("iOSFramework") == true)
+    }
+
+    @Test("Parse package with open access modifier")
+    func testOpenAccessModifier() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "OpenAccessPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("OpenAccessPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "OpenAccessPackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let openTarget = packageInfo.targets.first
+        #expect(openTarget?.name == "OpenTarget")
+        #expect(openTarget?.dependencies.count == 1)
+        #expect(openTarget?.dependencies.contains("OpenFramework") == true)
+    }
 }

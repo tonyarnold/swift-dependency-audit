@@ -11,8 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Constant-Based Dependency Declarations**
   - Support for dependency constants like `private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")`
   - Resolves constant references in dependency arrays (e.g., `dependencies: [TCA]`)
-  - Works with all access levels (`private`, `public`, `internal`, `fileprivate`)
+  - Works with all Swift access levels (`private`, `fileprivate`, `internal`, `public`, `open`)
   - Maintains full backward compatibility with existing dependency declaration methods
+
+### Fixed
+- **Missing Access Modifier Support**
+  - Added support for `open` access modifier in dependency constants
+  - Fixed parsing of dependency constants without explicit access modifiers (defaults to `internal`)
 
 ## [v1.4.0]
 
