@@ -8,25 +8,10 @@ struct PackageParserTests {
 
     @Test("Parse basic Package.swift")
     func testBasicPackageParsing() async throws {
-        let packageContent = """
-            // swift-tools-version: 6.0
-            import PackageDescription
-
-            let package = Package(
-                name: "TestPackage",
-                dependencies: [
-                    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
-                ],
-                targets: [
-                    .executableTarget(
-                        name: "TestTarget",
-                        dependencies: [
-                            .product(name: "ArgumentParser", package: "swift-argument-parser")
-                        ]
-                    ),
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "BasicPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         // Create temporary file for testing
         let tempDir = FileManager.default.temporaryDirectory
@@ -52,18 +37,10 @@ struct PackageParserTests {
 
     @Test("Parse package with multiple targets")
     func testMultipleTargets() async throws {
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "MultiTargetPackage",
-                targets: [
-                    .target(name: "LibraryTarget", dependencies: ["Dep1"]),
-                    .executableTarget(name: "ExecutableTarget", dependencies: ["LibraryTarget"]),
-                    .testTarget(name: "TestTarget", dependencies: ["LibraryTarget"])
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "MultiTargetPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
         let packageDir = tempDir.appendingPathComponent("MultiTargetPackage_\(UUID().uuidString)")
@@ -109,14 +86,10 @@ struct PackageParserTests {
 
     @Test("Parse package name with special characters")
     func testPackageNameParsing() async throws {
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "My-Special_Package123",
-                targets: []
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "SpecialNamePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
         let packageDir = tempDir.appendingPathComponent("SpecialPackage_\(UUID().uuidString)")
@@ -137,20 +110,10 @@ struct PackageParserTests {
 
     @Test("Parse package name with custom path")
     func testPackagePathParsing() async throws {
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "MyCustomPathPackage",
-                targets: [
-                    .target(
-                        name: "LibraryTarget",
-                        dependencies: ["Dep1"],
-                        path: "/Sources/MyCustomPath"
-                    ),
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "CustomPathPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         let tempDir = FileManager.default.temporaryDirectory
         let packageDir = tempDir.appendingPathComponent("SpecialPackage_\(UUID().uuidString)")

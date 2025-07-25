@@ -142,34 +142,10 @@ struct IntegrationTests {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         // Create Package.swift
-        let packageContent = """
-            // swift-tools-version: 6.0
-            import PackageDescription
-
-            let package = Package(
-                name: "TestPackage",
-                dependencies: [
-                    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
-                ],
-                targets: [
-                    .executableTarget(
-                        name: "TestPackage",
-                        dependencies: [
-                            .product(name: "ArgumentParser", package: "swift-argument-parser")
-                        ]
-                    ),
-                    .target(
-                        name: "CustomPathTarget",
-                        dependencies: [],
-                        path: "/Sources/MyCustomPath"
-                    ),
-                    .testTarget(
-                        name: "TestPackageTests",
-                        dependencies: ["TestPackage"]
-                    )
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "CompleteTestPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         try packageContent.write(to: tempDir.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
 
@@ -199,28 +175,10 @@ struct IntegrationTests {
             "ComplexPackage_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "ComplexPackage",
-                dependencies: [
-                    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0")
-                ],
-                targets: [
-                    .target(
-                        name: "MyLibrary",
-                        dependencies: [
-                            .product(name: "ArgumentParser", package: "swift-argument-parser")
-                        ]
-                    ),
-                    .executableTarget(
-                        name: "MyApp",
-                        dependencies: ["MyLibrary"]
-                    )
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "ComplexPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         try packageContent.write(to: tempDir.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
 
@@ -244,16 +202,10 @@ struct IntegrationTests {
             "SimplePackage_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "SimplePackage",
-                targets: [
-                    .target(name: "SimpleTarget", dependencies: [])
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "SimplePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         try packageContent.write(to: tempDir.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
 
@@ -269,16 +221,10 @@ struct IntegrationTests {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("LargePackage_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        let packageContent = """
-            import PackageDescription
-
-            let package = Package(
-                name: "LargePackage",
-                targets: [
-                    .target(name: "LargeTarget", dependencies: [])
-                ]
-            )
-            """
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "LargePackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
 
         try packageContent.write(to: tempDir.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
 
