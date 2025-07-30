@@ -738,6 +738,7 @@ public actor PackageParser {
     }
 
     // Robust section extraction using bracket counting
+    // Fixed to properly handle nested brackets within parentheses and other contexts
     private func extractSectionWithBracketCounting(from content: String, sectionName: String) -> String {
         // Find the section start pattern: sectionName: [
         let sectionStartPattern = Regex {
@@ -756,14 +757,41 @@ public actor PackageParser {
         // Start counting brackets from after the opening bracket
         var currentIndex = match.range.upperBound
         var bracketDepth = 1
+        var parenDepth = 0
+        var inString = false
+        var escapeNext = false
 
         while currentIndex < content.endIndex && bracketDepth > 0 {
             let char = content[currentIndex]
-            if char == "[" {
-                bracketDepth += 1
-            } else if char == "]" {
-                bracketDepth -= 1
+            
+            // Handle string literals - brackets inside strings should be ignored
+            if !escapeNext && char == "\"" {
+                inString.toggle()
+            } else if !escapeNext && char == "\\" && inString {
+                escapeNext = true
+                currentIndex = content.index(after: currentIndex)
+                continue
             }
+            
+            if !inString {
+                if char == "(" {
+                    parenDepth += 1
+                } else if char == ")" {
+                    parenDepth -= 1
+                } else if char == "[" {
+                    // Count all brackets, but only decrement at top level
+                    if parenDepth == 0 {
+                        bracketDepth += 1
+                    }
+                } else if char == "]" {
+                    // Only decrement bracket depth if we're at the top level (not inside parentheses)
+                    if parenDepth == 0 {
+                        bracketDepth -= 1
+                    }
+                }
+            }
+            
+            escapeNext = false
 
             if bracketDepth == 0 {
                 // Found the matching closing bracket
@@ -864,7 +892,9 @@ public actor PackageParser {
         let constantsMap = buildDependencyConstantsMap(from: packageContent)
 
         // Parse product dependencies with their package information
-        let productRegex = /\.product\s*\(\s*name:\s*"([^"]+)".*?package:\s*"([^"]+)"/
+        // Fixed regex that properly handles condition parameters and other optional parameters
+        // Using a more specific pattern that allows for any parameters between name and package
+        let productRegex = /\.product\s*\(\s*name:\s*"([^"]+)"[\s\S]*?package:\s*"([^"]+)"/
         for match in dependenciesStr.matches(of: productRegex) {
             let productName = String(match.1)
             let packageName = String(match.2)
