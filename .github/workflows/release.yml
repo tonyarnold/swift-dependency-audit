@@ -44,28 +44,7 @@ jobs:
 
       - name: Setup Swift (Linux only)
         if: matrix.platform == 'Linux'
-        run: |
-          # Check if Swift is already available
-          if command -v swift >/dev/null 2>&1; then
-            echo "Swift is already available:"
-            swift --version
-          else
-            echo "Installing Swift using Swiftly..."
-
-            # Install Swiftly
-            curl -L https://swift-server.github.io/swiftly/swiftly-install.sh | bash
-
-            # Add Swiftly to PATH for current session
-            export PATH="$HOME/.local/bin:$PATH"
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-            # Install latest Swift toolchain
-            swiftly install latest
-            swiftly use latest
-
-            echo "Swift installation completed:"
-            swift --version
-          fi
+        run: ./Scripts/setup-swift-linux.sh
 
       - name: Show Swift version
         run: swift --version
@@ -85,142 +64,23 @@ jobs:
         run: swift package resolve
 
       - name: Build optimized binary
-        run: |
-          # Show version that will be detected
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.tag_name }}"
-          else
-            VERSION=${GITHUB_REF#refs/tags/}
-          fi
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-
-          if [ "${{ matrix.platform }}" = "macOS" ]; then
-            echo "Building universal macOS binary (version will be detected as: $VERSION)..."
-
-            # Build ARM64 binary
-            echo "Building ARM64 binary..."
-            swift build --configuration release --arch arm64 -Xswiftc -Osize
-
-            # Build x86_64 binary
-            echo "Building x86_64 binary..."
-            swift build --configuration release --arch x86_64 -Xswiftc -Osize
-
-            # Create output directory
-            mkdir -p .build/apple/Products/Release
-
-            # Combine architectures with lipo
-            echo "Combining architectures with lipo..."
-            lipo -create \
-              .build/arm64-apple-macosx/release/swift-dependency-audit \
-              .build/x86_64-apple-macosx/release/swift-dependency-audit \
-              -output .build/apple/Products/Release/swift-dependency-audit
-
-            # Verify the universal binary
-            echo "Verifying universal binary..."
-            lipo -info .build/apple/Products/Release/swift-dependency-audit
-
-            # Strip the final binary
-            strip -rSTx .build/apple/Products/Release/swift-dependency-audit
-          else
-            echo "Building static Linux binary for ${{ matrix.arch }} (version will be detected as: $VERSION)..."
-            swift build --configuration release --triple ${{ matrix.triple }} -Xswiftc -Osize --static-swift-stdlib
-            strip .build/${{ matrix.triple }}/release/swift-dependency-audit
-          fi
+        run: ./Scripts/build-swift-binary.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "tag"
 
       - name: Sign and notarize macOS binary
         if: matrix.platform == 'macOS'
-        run: |
-          # Create variables (RUNNER_TEMP is provided by GitHub Actions)
-          TEMP_DIR="${RUNNER_TEMP:-/tmp}"
-          CERTIFICATE_PATH="${TEMP_DIR}/build_certificate.p12"
-          EPHEMERAL_KEYCHAIN_PASSWORD="$(openssl rand -base64 100)"
-          EPHEMERAL_KEYCHAIN_PATH="${TEMP_DIR}/app-signing.keychain-db"
-
-          # Import certificate from secret
-          echo -n "${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}" | base64 --decode -o "${CERTIFICATE_PATH}"
-
-          # Create temporary keychain
-          security create-keychain -p "$EPHEMERAL_KEYCHAIN_PASSWORD" "${EPHEMERAL_KEYCHAIN_PATH}"
-          security set-keychain-settings -lut 21600 "${EPHEMERAL_KEYCHAIN_PATH}"
-          security unlock-keychain -p "$EPHEMERAL_KEYCHAIN_PASSWORD" "${EPHEMERAL_KEYCHAIN_PATH}"
-
-          # Import certificate to keychain
-          security import "${CERTIFICATE_PATH}" -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -k "${EPHEMERAL_KEYCHAIN_PATH}"
-          security set-key-partition-list -S "apple-tool:,apple:" -s -k "${EPHEMERAL_KEYCHAIN_PASSWORD}" "${EPHEMERAL_KEYCHAIN_PATH}"
-          security list-keychain -d user -s "${EPHEMERAL_KEYCHAIN_PATH}" login.keychain
-
-          # Clean up certificate file
-          rm "${CERTIFICATE_PATH}"
-
-          # Find the exact certificate identity
-          CERT_IDENTITY=$(security find-identity -v "${EPHEMERAL_KEYCHAIN_PATH}" | grep "Developer ID Application" | head -1 | cut -d '"' -f 2)
-          echo "Using certificate identity: $CERT_IDENTITY"
-
-          # Sign binary
-          codesign --force --options runtime --timestamp --sign "$CERT_IDENTITY" .build/apple/Products/Release/swift-dependency-audit
-
-          # Verify signature
-          codesign --verify --verbose .build/apple/Products/Release/swift-dependency-audit
-
-          # Create API key
-          echo "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 --decode -o "${TEMP_DIR}/AuthKey.p8"
-
-          # Zip for notarization
-          ditto -c -k --keepParent .build/apple/Products/Release/swift-dependency-audit swift-dependency-audit.zip
-
-          # Submit for notarization
-          xcrun notarytool submit swift-dependency-audit.zip \
-            --key "${TEMP_DIR}/AuthKey.p8" \
-            --key-id "${{ secrets.APPLE_API_KEY_ID }}" \
-            --issuer "${{ secrets.APPLE_API_ISSUER_ID }}" \
-            --wait
-
-          echo "Staple notarization ticket to .build/apple/Products/Release/swift-dependency-audit"
-          xcrun stapler staple .build/apple/Products/Release/swift-dependency-audit
-
-          # Clean up
-          rm -f "${TEMP_DIR}/AuthKey.p8" swift-dependency-audit.zip
-          security delete-keychain "${EPHEMERAL_KEYCHAIN_PATH}"
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: ./Scripts/sign-and-notarize-macos.sh
 
       - name: Basic functionality test
-        run: |
-          if [ "${{ matrix.platform }}" = "macOS" ]; then
-            BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
-          else
-            BINARY_PATH=".build/${{ matrix.triple }}/release/swift-dependency-audit"
-          fi
-
-          echo "Testing basic functionality..."
-          $BINARY_PATH --version
-          $BINARY_PATH --help > /dev/null
-          $BINARY_PATH . --exclude-tests --quiet
+        run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "basic"
 
       - name: Comprehensive validation
-        run: |
-          if [ "${{ matrix.platform }}" = "macOS" ]; then
-            BINARY_PATH=".build/apple/Products/Release/swift-dependency-audit"
-          else
-            BINARY_PATH=".build/${{ matrix.triple }}/release/swift-dependency-audit"
-          fi
-
-          echo "=== Comprehensive CLI Validation ==="
-          $BINARY_PATH --help
-          $BINARY_PATH --version
-
-          echo "=== Testing Self-Analysis ==="
-          $BINARY_PATH . --verbose --exclude-tests
-
-          echo "=== Testing JSON Output ==="
-          $BINARY_PATH . --output-format json --no-color --exclude-tests > output.json
-          jq . output.json > /dev/null || (echo "❌ Invalid JSON output" && exit 1)
-          echo "✅ JSON output is valid"
-
-          echo "=== Testing Output Formats ==="
-          $BINARY_PATH . --output-format xcode --quiet --exclude-tests
-          $BINARY_PATH . --output-format github-actions --quiet --exclude-tests
-
-          echo "=== Testing Custom Whitelist ==="
-          $BINARY_PATH . --whitelist "Foundation,SwiftUI,ArgumentParser" --verbose --exclude-tests
+        run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "comprehensive"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
