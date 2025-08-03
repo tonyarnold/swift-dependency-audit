@@ -266,9 +266,9 @@ jobs:
 
           # Add installation instructions to release notes using template
           echo "" >> release_notes.md  # Add blank line before footer
-          sed -e "s/__REPOSITORY__/${{ github.repository }}/g" \
-              -e "s/__VERSION__/${VERSION}/g" \
-              -e "s/__CHECKSUM__/${CHECKSUM}/g" \
+          sed -e "s|__REPOSITORY__|${{ github.repository }}|g" \
+              -e "s|__VERSION__|${VERSION}|g" \
+              -e "s|__CHECKSUM__|${CHECKSUM}|g" \
               Templates/release-notes-footer.md >> release_notes.md
 
       - name: Create GitHub Release
