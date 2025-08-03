@@ -15,6 +15,6 @@ let package = Package(
         .executableTarget(
             name: "MyApp",
             dependencies: ["MyLibrary"]
-        )
+        ),
     ]
 )

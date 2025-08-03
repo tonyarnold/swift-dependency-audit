@@ -1,5 +1,6 @@
 import PackageDescription
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 private let CustomDep = Target.Dependency.product(
     name: "CustomFramework",
     package: "custom-framework"

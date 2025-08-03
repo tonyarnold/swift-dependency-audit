@@ -4,7 +4,7 @@ import PackageDescription
 let products: [Product] = [
     .library(name: "NetworkKit", targets: ["NetworkClient", "NetworkCore"]),
     .library(name: "DataProcessor", targets: ["DataModels", "DataStorage"]),
-    .executable(name: "CLITool", targets: ["CLIMain"])
+    .executable(name: "CLITool", targets: ["CLIMain"]),
 ]
 
 let package = Package(

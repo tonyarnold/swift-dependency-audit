@@ -390,19 +390,22 @@ struct PackageParserTests {
 
         let testTarget = packageInfo.targets.first
         #expect(testTarget?.name == "TestTarget")
-        
+
         // KNOWN LIMITATION: The regex-based parser has trouble with conditional dependencies
         // It currently only finds the first dependency (MyModuleTV) due to regex parsing complexity
         // This is fixed by the SwiftSyntax parser (see SwiftSyntaxPackageParserTests.testConditionalDependenciesFix)
-        
+
         // Test what the regex parser actually does (not what we wish it did)
-        #expect(testTarget?.dependencies.count == 1, "Regex parser currently finds 1 dependency due to conditional parsing limitation")
+        #expect(
+            testTarget?.dependencies.count == 1,
+            "Regex parser currently finds 1 dependency due to conditional parsing limitation")
         #expect(testTarget?.dependencies.contains("MyModuleTV") == true, "Should find the first dependency")
-        
+
         // Document the limitation for future reference
         let foundDeps = testTarget?.dependencies ?? []
         let expectedDeps = ["MyModuleTV", "RxSwift", "AnotherProduct"]
-        print("KNOWN LIMITATION: Regex parser found \(foundDeps.count)/\(expectedDeps.count) dependencies: \(foundDeps)")
+        print(
+            "KNOWN LIMITATION: Regex parser found \(foundDeps.count)/\(expectedDeps.count) dependencies: \(foundDeps)")
         print("Expected dependencies: \(expectedDeps)")
         print("This limitation is resolved by the SwiftSyntax parser")
     }

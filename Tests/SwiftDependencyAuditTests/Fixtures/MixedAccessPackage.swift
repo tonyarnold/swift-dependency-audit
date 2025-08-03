@@ -1,31 +1,37 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 private let PrivateDep = Target.Dependency.product(
     name: "Private",
     package: "private-package"
 )
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 public let PublicDep = Target.Dependency.product(
     name: "Public",
     package: "public-package"
 )
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 internal let InternalDep = Target.Dependency.product(
     name: "Internal",
     package: "internal-package"
 )
 
-fileprivate let FileprivateDep = Target.Dependency.product(
+// swift-format-ignore: AlwaysUseLowerCamelCase
+private let FileprivateDep = Target.Dependency.product(
     name: "Fileprivate",
     package: "fileprivate-package"
 )
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 open let OpenDep = Target.Dependency.product(
     name: "Open",
     package: "open-package"
 )
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 let NoModifierDep = Target.Dependency.product(
     name: "NoModifier",
     package: "no-modifier-package"

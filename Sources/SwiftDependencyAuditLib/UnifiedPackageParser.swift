@@ -5,7 +5,7 @@ public enum ParserBackend: String, CaseIterable, Sendable {
     case swiftSyntax = "swiftsyntax"
     case regex = "regex"
     case auto = "auto"
-    
+
     public var description: String {
         switch self {
         case .swiftSyntax:
@@ -24,14 +24,14 @@ public final class UnifiedPackageParser: Sendable {
     private let swiftSyntaxParser: SwiftSyntaxPackageParser
     private let regexParser: PackageParser
     private let verbose: Bool
-    
+
     public init(backend: ParserBackend = .auto, verbose: Bool = false) {
         self.backend = backend
         self.verbose = verbose
         self.swiftSyntaxParser = SwiftSyntaxPackageParser()
         self.regexParser = PackageParser()
     }
-    
+
     public func parsePackage(at path: String) async throws -> PackageInfo {
         switch backend {
         case .swiftSyntax:
@@ -39,13 +39,13 @@ public final class UnifiedPackageParser: Sendable {
                 print("Using SwiftSyntax parser")
             }
             return try await swiftSyntaxParser.parsePackage(at: path)
-            
+
         case .regex:
             if verbose {
                 print("Using regex parser")
             }
             return try await regexParser.parsePackage(at: path)
-            
+
         case .auto:
             do {
                 if verbose {
@@ -64,7 +64,7 @@ public final class UnifiedPackageParser: Sendable {
             }
         }
     }
-    
+
     public func parseContent(_ content: String, packageDirectory: String) async throws -> PackageInfo {
         switch backend {
         case .swiftSyntax:
@@ -72,13 +72,13 @@ public final class UnifiedPackageParser: Sendable {
                 print("Using SwiftSyntax parser")
             }
             return try await swiftSyntaxParser.parseContent(content, packageDirectory: packageDirectory)
-            
+
         case .regex:
             if verbose {
                 print("Using regex parser")
             }
             return try await regexParser.parseContent(content, packageDirectory: packageDirectory)
-            
+
         case .auto:
             do {
                 if verbose {

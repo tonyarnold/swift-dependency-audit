@@ -1,6 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 // Constant with different formatting (minimal spaces)
 let CompactDep = Target.Dependency.product(name: "Compact", package: "compact-package")
 

@@ -9,37 +9,37 @@ struct SwiftSyntaxPackageParserTests {
     @Test("Parse basic Package.swift with line numbers")
     func testBasicPackageParsingWithLineNumbers() async throws {
         let packageContent = """
-// swift-tools-version: 6.1
-import PackageDescription
+            // swift-tools-version: 6.1
+            import PackageDescription
 
-let package = Package(
-    name: "TestPackage",
-    products: [
-        .library(name: "TestLibrary", targets: ["TestTarget"]),
-        .executable(name: "TestExec", targets: ["TestExec"])
-    ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0")
-    ],
-    targets: [
-        .target(
-            name: "TestTarget",
-            dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                "SomeOtherTarget"
-            ]
-        ),
-        .executableTarget(
-            name: "TestExec",
-            dependencies: ["TestTarget"]
-        ),
-        .testTarget(
-            name: "TestTargetTests",
-            dependencies: ["TestTarget"]
-        )
-    ]
-)
-"""
+            let package = Package(
+                name: "TestPackage",
+                products: [
+                    .library(name: "TestLibrary", targets: ["TestTarget"]),
+                    .executable(name: "TestExec", targets: ["TestExec"])
+                ],
+                dependencies: [
+                    .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0")
+                ],
+                targets: [
+                    .target(
+                        name: "TestTarget",
+                        dependencies: [
+                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                            "SomeOtherTarget"
+                        ]
+                    ),
+                    .executableTarget(
+                        name: "TestExec",
+                        dependencies: ["TestTarget"]
+                    ),
+                    .testTarget(
+                        name: "TestTargetTests",
+                        dependencies: ["TestTarget"]
+                    )
+                ]
+            )
+            """
 
         let parser = SwiftSyntaxPackageParser()
         let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp")
@@ -89,26 +89,26 @@ let package = Package(
     @Test("Parse package with dependency constants")
     func testDependencyConstants() async throws {
         let packageContent = """
-// swift-tools-version: 6.1
-import PackageDescription
+            // swift-tools-version: 6.1
+            import PackageDescription
 
-let ArgumentParser = Target.Dependency.product(name: "ArgumentParser", package: "swift-argument-parser")
+            let ArgumentParser = Target.Dependency.product(name: "ArgumentParser", package: "swift-argument-parser")
 
-let package = Package(
-    name: "TestPackage",
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0")
-    ],
-    targets: [
-        .target(
-            name: "TestTarget",
-            dependencies: [
-                ArgumentParser
-            ]
-        )
-    ]
-)
-"""
+            let package = Package(
+                name: "TestPackage",
+                dependencies: [
+                    .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0")
+                ],
+                targets: [
+                    .target(
+                        name: "TestTarget",
+                        dependencies: [
+                            ArgumentParser
+                        ]
+                    )
+                ]
+            )
+            """
 
         let parser = SwiftSyntaxPackageParser()
         let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp")
@@ -156,8 +156,10 @@ let package = Package(
         #expect(syntaxTarget.dependencies.contains("AnotherProduct"))
 
         // Demonstrate the regex parser bug (this shows why SwiftSyntax migration is valuable)
-        #expect(regexTarget.dependencies.count == 1, "Regex parser bug: only finds 1 dependency due to conditional parsing issue")
-        
+        #expect(
+            regexTarget.dependencies.count == 1,
+            "Regex parser bug: only finds 1 dependency due to conditional parsing issue")
+
         print("SwiftSyntax parser found \(syntaxTarget.dependencies.count) dependencies: \(syntaxTarget.dependencies)")
         print("Regex parser found \(regexTarget.dependencies.count) dependencies: \(regexTarget.dependencies)")
     }
@@ -172,7 +174,7 @@ let package = Package(
         // Parse with both parsers
         let syntaxParser = SwiftSyntaxPackageParser()
         let regexParser = PackageParser()
-        
+
         let syntaxResult = try await syntaxParser.parseContent(packageContent, packageDirectory: "/tmp")
         let regexResult = try await regexParser.parseContent(packageContent, packageDirectory: "/tmp")
 
@@ -187,7 +189,9 @@ let package = Package(
                     if let regexDep = regexTarget.dependencyInfo.first(where: { $0.name == syntaxDep.name }) {
                         // Both should have line numbers, and they should be close (within 2 lines tolerance)
                         if let syntaxLine = syntaxDep.lineNumber, let regexLine = regexDep.lineNumber {
-                            #expect(abs(syntaxLine - regexLine) <= 2, "Line numbers should be close: SwiftSyntax=\(syntaxLine), Regex=\(regexLine)")
+                            #expect(
+                                abs(syntaxLine - regexLine) <= 2,
+                                "Line numbers should be close: SwiftSyntax=\(syntaxLine), Regex=\(regexLine)")
                         }
                     }
                 }

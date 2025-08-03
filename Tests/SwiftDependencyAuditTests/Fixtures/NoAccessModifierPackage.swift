@@ -1,11 +1,13 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 let TCA = Target.Dependency.product(
     name: "ComposableArchitecture",
     package: "swift-composable-architecture"
 )
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 let AsyncAlgorithms = Target.Dependency.product(
     name: "AsyncAlgorithms",
     package: "swift-async-algorithms"
