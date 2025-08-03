@@ -132,12 +132,20 @@ jobs:
             strip .build/${{ matrix.triple }}/release/swift-dependency-audit
           fi
 
-      - name: Install App Store Connect API Key
+      - name: Install App Store Connect API Key and Certificate
         if: matrix.platform == 'macOS'
         run: |
-          mkdir -p private_keys/
-          echo "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 -d > private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          # Create certificate file
           echo "${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}" | base64 -d > /tmp/certificate.p12
+
+          # Create API key JSON file with the exact format rcodesign expects
+          cat > /tmp/api_key.json << 'EOF'
+          {
+            "issuer_id": "${{ secrets.APPLE_API_ISSUER_ID }}",
+            "key_id": "${{ secrets.APPLE_API_KEY_ID }}",
+            "private_key": "${{ secrets.APPLE_API_KEY_BASE64 }}"
+          }
+          EOF
 
       - name: Sign and notarize macOS binary
         if: matrix.platform == 'macOS'
@@ -148,13 +156,12 @@ jobs:
           p12_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           notarize: true
           staple: true
-          app_store_connect_api_issuer: ${{ secrets.APPLE_API_ISSUER_ID }}
-          app_store_connect_api_key: ${{ secrets.APPLE_API_KEY_ID }}
+          app_store_connect_api_key_json_file: /tmp/api_key.json
 
       - name: Clean up certificate files
         if: matrix.platform == 'macOS'
         run: |
-          rm -f /tmp/certificate.p12 private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          rm -f /tmp/certificate.p12 /tmp/api_key.json
 
       - name: Basic functionality test
         run: |
