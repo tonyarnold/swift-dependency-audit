@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The macOS binary tool is now code signed and notarized.
+
+## [v2.0.0]
+
 ### Added
 - **Constant-Based Dependency Declarations**
   - Support for dependency constants like `private let TCA = Target.Dependency.product(name: "ComposableArchitecture", package: "swift-composable-architecture")`
