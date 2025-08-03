@@ -137,17 +137,18 @@ jobs:
         run: |
           echo "${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}" | base64 -d > /tmp/certificate.p12
           
-          # Decode the API key from BASE64 to get the actual PEM content
-          API_KEY_CONTENT=$(echo "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 -d)
+          # Decode the API key from BASE64 and escape for JSON
+          echo "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 -d > /tmp/private_key.p8
           
-          # Create App Store Connect API key JSON file with proper format
-          cat > /tmp/api_key.json << EOF
-          {
-            "issuer_id": "${{ secrets.APPLE_API_ISSUER_ID }}",
-            "key_id": "${{ secrets.APPLE_API_KEY_ID }}",
-            "private_key": "$API_KEY_CONTENT"
-          }
-          EOF
+          # Create App Store Connect API key JSON file using jq for proper escaping
+          jq -n \
+            --arg issuer_id "${{ secrets.APPLE_API_ISSUER_ID }}" \
+            --arg key_id "${{ secrets.APPLE_API_KEY_ID }}" \
+            --rawfile private_key /tmp/private_key.p8 \
+            '{"issuer_id": $issuer_id, "key_id": $key_id, "private_key": $private_key}' > /tmp/api_key.json
+          
+          # Clean up temporary key file
+          rm -f /tmp/private_key.p8
 
       - name: Sign and notarize macOS binary
         if: matrix.platform == 'macOS'
