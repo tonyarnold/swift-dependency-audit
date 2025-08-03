@@ -1,6 +1,15 @@
 // swift-tools-version: 6.1
 import PackageDescription
 
+// Conditional plugin dependencies based on platform
+let swiftDependencyAuditPluginDependencies: [Target.Dependency]
+
+#if os(macOS)
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAuditBinary")]
+#else
+    swiftDependencyAuditPluginDependencies = [.target(name: "SwiftDependencyAudit")]
+#endif
+
 let package = Package(
     name: "SwiftDependencyAudit",
     platforms: [
@@ -15,16 +24,11 @@ let package = Package(
         .plugin(name: "DependencyAuditPlugin", targets: ["DependencyAuditPlugin"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.1"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.1"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.1")
     ],
     targets: [
         .target(
             name: "SwiftDependencyAuditLib",
-            dependencies: [
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SwiftParser", package: "swift-syntax"),
-            ],
             plugins: ["VersionPlugin"]
         ),
         .executableTarget(
@@ -42,13 +46,12 @@ let package = Package(
         ),
         .testTarget(
             name: "SwiftDependencyAuditTests",
-            dependencies: ["SwiftDependencyAuditLib"],
-            resources: [.copy("Fixtures")]
+            dependencies: ["SwiftDependencyAuditLib"]
         ),
         .plugin(
             name: "DependencyAuditPlugin",
             capability: .buildTool(),
-            dependencies: ["SwiftDependencyAudit"]
+            dependencies: swiftDependencyAuditPluginDependencies
         ),
         .plugin(
             name: "VersionPlugin",
@@ -57,3 +60,15 @@ let package = Package(
         ),
     ]
 )
+
+// Conditionally add binary target only on macOS
+#if os(macOS)
+    package.targets.append(
+        .binaryTarget(
+            name: "SwiftDependencyAuditBinary",
+            url:
+                "https://github.com/tonyarnold/swift-dependency-audit/releases/download/v2.0.1/swift-dependency-audit.artifactbundle.zip",
+            checksum: "3ed01893ce6d136bbbf9a752ca7acc3743f08f62f7252f87848e94c15554b2c5"
+        )
+    )
+#endif
