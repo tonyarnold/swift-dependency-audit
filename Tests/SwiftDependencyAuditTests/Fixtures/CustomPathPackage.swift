@@ -7,6 +7,6 @@ let package = Package(
             name: "LibraryTarget",
             dependencies: ["Dep1"],
             path: "/Sources/MyCustomPath"
-        ),
+        )
     ]
 )

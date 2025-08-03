@@ -15,7 +15,7 @@ let package = Package(
             dependencies: [
                 .product(name: "MyModuleTV", package: "MyModuleTV", condition: .when(platforms: [.tvOS])),
                 .product(name: "RxSwift", package: "RxSwift"),
-                .product(name: "AnotherProduct", package: "AnotherPackage")
+                .product(name: "AnotherProduct", package: "AnotherPackage"),
             ]
         )
     ]

@@ -2,11 +2,11 @@ import Foundation
 
 public actor ExternalPackageResolver {
     private static let maxSearchDepth = 5
-    private let packageParser: PackageParser
+    private let packageParser: UnifiedPackageParser
     private var packageCache: [String: ExternalPackage] = [:]
 
-    public init() {
-        self.packageParser = PackageParser()
+    public init(parser: UnifiedPackageParser? = nil) {
+        self.packageParser = parser ?? UnifiedPackageParser(backend: .auto, verbose: false)
     }
 
     public func resolveExternalPackages(for packageInfo: PackageInfo) async throws -> [ExternalPackage] {

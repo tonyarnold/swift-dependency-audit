@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with all Swift access levels (`private`, `fileprivate`, `internal`, `public`, `open`)
   - Maintains full backward compatibility with existing dependency declaration methods
 
+- **SwiftSyntax Parser Integration**
+  - Added AST-based Package.swift parsing using SwiftSyntax for improved accuracy
+  - Configurable parser backend: `--parser swiftsyntax|regex|auto` (default: auto)
+  - Auto mode attempts SwiftSyntax first with regex fallback for compatibility
+  - SwiftSyntax parser fixes conditional dependency parsing limitations of regex parser
+
 ### Fixed
 - **Missing Access Modifier Support**
   - Added support for `open` access modifier in dependency constants

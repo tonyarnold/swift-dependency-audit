@@ -5,6 +5,6 @@ let package = Package(
     targets: [
         .target(name: "LibraryTarget", dependencies: ["Dep1"]),
         .executableTarget(name: "ExecutableTarget", dependencies: ["LibraryTarget"]),
-        .testTarget(name: "TestTarget", dependencies: ["LibraryTarget"])
+        .testTarget(name: "TestTarget", dependencies: ["LibraryTarget"]),
     ]
 )

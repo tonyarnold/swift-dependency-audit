@@ -2,9 +2,11 @@ import Foundation
 
 public actor DependencyAnalyzer {
     private let importScanner = ImportScanner()
-    private let externalPackageResolver = ExternalPackageResolver()
+    private let externalPackageResolver: ExternalPackageResolver
 
-    public init() {}
+    public init(parser: UnifiedPackageParser? = nil) {
+        self.externalPackageResolver = ExternalPackageResolver(parser: parser)
+    }
 
     public func analyzeTarget(_ target: Target, in packageInfo: PackageInfo, customWhitelist: Set<String> = [])
         async throws -> AnalysisResult

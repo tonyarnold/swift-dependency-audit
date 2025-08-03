@@ -11,13 +11,13 @@ private let iOSOnlyDep = Target.Dependency.product(
 let package = Package(
     name: "ConditionalPackage",
     dependencies: [
-        .package(url: "https://github.com/example/ios-framework", from: "1.0.0"),
+        .package(url: "https://github.com/example/ios-framework", from: "1.0.0")
     ],
     targets: [
         .target(
             name: "ConditionalTarget",
             dependencies: [
-                iOSOnlyDep,
+                iOSOnlyDep
             ]
         )
     ]

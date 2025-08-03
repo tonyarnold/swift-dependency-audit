@@ -763,7 +763,7 @@ public actor PackageParser {
 
         while currentIndex < content.endIndex && bracketDepth > 0 {
             let char = content[currentIndex]
-            
+
             // Handle string literals - brackets inside strings should be ignored
             if !escapeNext && char == "\"" {
                 inString.toggle()
@@ -772,7 +772,7 @@ public actor PackageParser {
                 currentIndex = content.index(after: currentIndex)
                 continue
             }
-            
+
             if !inString {
                 if char == "(" {
                     parenDepth += 1
@@ -790,7 +790,7 @@ public actor PackageParser {
                     }
                 }
             }
-            
+
             escapeNext = false
 
             if bracketDepth == 0 {
