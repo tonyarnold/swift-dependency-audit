@@ -132,36 +132,36 @@ jobs:
             strip .build/${{ matrix.triple }}/release/swift-dependency-audit
           fi
 
-      - name: Install App Store Connect API Key and Certificate
-        if: matrix.platform == 'macOS'
-        run: |
-          # Create certificate file
-          echo "${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}" | base64 -d > /tmp/certificate.p12
-
-          # Create API key JSON file with the exact format rcodesign expects
-          cat > /tmp/api_key.json << 'EOF'
-          {
-            "issuer_id": "${{ secrets.APPLE_API_ISSUER_ID }}",
-            "key_id": "${{ secrets.APPLE_API_KEY_ID }}",
-            "private_key": "${{ secrets.APPLE_API_KEY_BASE64 }}"
-          }
-          EOF
-
       - name: Sign and notarize macOS binary
         if: matrix.platform == 'macOS'
-        uses: indygreg/apple-code-sign-action@v1
-        with:
-          input_path: .build/apple/Products/Release/swift-dependency-audit
-          p12_file: /tmp/certificate.p12
-          p12_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          notarize: true
-          staple: true
-          app_store_connect_api_key_json_file: /tmp/api_key.json
-
-      - name: Clean up certificate files
-        if: matrix.platform == 'macOS'
         run: |
-          rm -f /tmp/certificate.p12 /tmp/api_key.json
+          # Import certificate
+          echo "${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}" | base64 -d > /tmp/certificate.p12
+          security create-keychain -p temp_keychain temp.keychain
+          security set-keychain-settings -lut 21600 temp.keychain
+          security unlock-keychain -p temp_keychain temp.keychain
+          security import /tmp/certificate.p12 -k temp.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp_keychain temp.keychain
+          
+          # Sign binary
+          codesign --force --options runtime --timestamp --sign "Developer ID Application" .build/apple/Products/Release/swift-dependency-audit
+          
+          # Create API key
+          echo "${{ secrets.APPLE_API_KEY_BASE64 }}" | base64 -d > /tmp/AuthKey.p8
+          
+          # Zip for notarization
+          ditto -c -k --keepParent .build/apple/Products/Release/swift-dependency-audit swift-dependency-audit.zip
+          
+          # Submit for notarization
+          xcrun notarytool submit swift-dependency-audit.zip \
+            --key /tmp/AuthKey.p8 \
+            --key-id "${{ secrets.APPLE_API_KEY_ID }}" \
+            --issuer "${{ secrets.APPLE_API_ISSUER_ID }}" \
+            --wait
+          
+          # Clean up
+          rm -f /tmp/certificate.p12 /tmp/AuthKey.p8 swift-dependency-audit.zip
+          security delete-keychain temp.keychain
 
       - name: Basic functionality test
         run: |
