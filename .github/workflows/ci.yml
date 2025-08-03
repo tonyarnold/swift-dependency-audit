@@ -132,6 +132,18 @@ jobs:
             strip .build/${{ matrix.triple }}/release/swift-dependency-audit
           fi
 
+      - name: Sign and notarize macOS binary
+        if: matrix.platform == 'macOS'
+        uses: indygreg/apple-code-sign-action@v1
+        with:
+          input_path: .build/apple/Products/Release/swift-dependency-audit
+          p12_file: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          p12_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          notarize: true
+          api_key_id: ${{ secrets.APPLE_API_KEY_ID }}
+          api_issuer: ${{ secrets.APPLE_API_ISSUER_ID }}
+          api_key: ${{ secrets.APPLE_API_KEY_BASE64 }}
+
       - name: Basic functionality test
         run: |
           if [ "${{ matrix.platform }}" = "macOS" ]; then
