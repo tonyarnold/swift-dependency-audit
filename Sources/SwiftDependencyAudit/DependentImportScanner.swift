@@ -23,6 +23,9 @@ public enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
     case githubActions = "github-actions"
 }
 
+// Add ArgumentParser conformance for ParserBackend in the CLI layer
+extension ParserBackend: ExpressibleByArgument {}
+
 @main
 public struct SwiftDependencyAudit: AsyncParsableCommand {
     public init() {}
@@ -65,6 +68,11 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
         help: "Output format: terminal, json, xcode, or github-actions")
     public var outputFormat: OutputFormat = .terminal
 
+    @Option(
+        name: .long,
+        help: "Parser backend: swiftsyntax, regex, or auto (default: auto)")
+    public var parser: ParserBackend = .auto
+
     public func run() async throws {
         // Configure color output
         let shouldDisableColor = noColor
@@ -75,8 +83,9 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
             let customWhitelist = parseWhitelist(whitelist)
 
             // Initialize components
-            let parser = PackageParser()
-            let analyzer = DependencyAnalyzer()
+            let parserBackend = parser  // Capture parser backend to avoid data race
+            let packageParser = UnifiedPackageParser(backend: parserBackend, verbose: verbose)
+            let analyzer = DependencyAnalyzer(parser: packageParser)
             let processor = ParallelProcessor()
 
             if verbose && outputFormat != .json {
@@ -85,7 +94,7 @@ public struct SwiftDependencyAudit: AsyncParsableCommand {
             }
 
             // Parse package
-            let packageInfo = try await parser.parsePackage(at: path)
+            let packageInfo = try await packageParser.parsePackage(at: path)
 
             if verbose && outputFormat != .json {
                 let message = ColorOutput.info(

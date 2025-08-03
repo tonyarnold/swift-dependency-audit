@@ -91,7 +91,7 @@ public actor ParallelProcessor {
 
     public func processPackagesInParallel(
         _ packagePaths: [String],
-        parser: PackageParser
+        parser: UnifiedPackageParser
     ) async throws -> [PackageInfo] {
         return try await withThrowingTaskGroup(of: PackageInfo.self, returning: [PackageInfo].self) { group in
             var results: [PackageInfo] = []
