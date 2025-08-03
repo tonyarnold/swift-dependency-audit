@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added support for `open` access modifier in dependency constants
   - Fixed parsing of dependency constants without explicit access modifiers (defaults to `internal`)
 
+- **Conditional Product Dependency Parsing**
+  - Fixed bug where products declared after conditional dependencies with platform-specific conditions were ignored during parsing
+  - Enhanced bracket counting algorithm to properly handle nested brackets within parentheses (e.g., `condition: .when(platforms: [.tvOS])`)
+  - Section extraction now correctly ignores square brackets inside parentheses to prevent premature parsing termination
+  - Resolves issue where dependencies like `RxSwift` were missed when following conditional products like `MyModuleTV` with platform conditions
+
 ## [v1.4.0]
 
 ### Changed

@@ -363,4 +363,39 @@ struct PackageParserTests {
         #expect(openTarget?.dependencies.count == 1)
         #expect(openTarget?.dependencies.contains("OpenFramework") == true)
     }
+
+    @Test("Parse package with conditional product dependencies that ignore subsequent products - Bug Reproduction")
+    func testConditionalProductBug() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "ConditionalBugPackage", withExtension: "swift", subdirectory: "Fixtures")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let packageDir = tempDir.appendingPathComponent("ConditionalBugPackage_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
+
+        let packageFile = packageDir.appendingPathComponent("Package.swift")
+        try packageContent.write(to: packageFile, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: packageDir)
+        }
+
+        let parser = PackageParser()
+        let packageInfo = try await parser.parsePackage(at: packageDir.path)
+
+        #expect(packageInfo.name == "ConditionalBugPackage")
+        #expect(packageInfo.targets.count == 1)
+
+        let testTarget = packageInfo.targets.first
+        #expect(testTarget?.name == "TestTarget")
+        
+        // This test should demonstrate the bug - products after conditional dependencies are ignored
+        // Expected: Should find all 3 dependencies: MyModuleTV, RxSwift, and AnotherProduct
+        #expect(testTarget?.dependencies.count == 3, "Bug: Expected 3 dependencies but found \(testTarget?.dependencies.count ?? 0)")
+        #expect(testTarget?.dependencies.contains("MyModuleTV") == true)
+        #expect(testTarget?.dependencies.contains("RxSwift") == true, "Bug: RxSwift product after conditional dependency is ignored")
+        #expect(testTarget?.dependencies.contains("AnotherProduct") == true, "Bug: AnotherProduct after conditional dependency is ignored")
+    }
 }
