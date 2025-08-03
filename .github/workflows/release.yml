@@ -252,13 +252,16 @@ jobs:
           RELEASE_BRANCH="release/${VERSION}"
           git checkout -b "$RELEASE_BRANCH"
 
+          # Get the checksum for the commit message
+          CHECKSUM=$(cat swift-dependency-audit.artifactbundle.zip.checksum)
+
           # Add and commit the updated Package.swift
           git add Package.swift
           git commit -m "Release Package.swift for $VERSION
 
           - Production Package.swift with binary targets
           - Updated binary target URL for $VERSION
-          - Updated checksum: $(cat swift-dependency-audit.artifactbundle.zip.checksum)
+          - Updated checksum: $CHECKSUM
 
           🤖 Automated release commit"
 
@@ -343,54 +346,15 @@ jobs:
           EOF
           fi
 
-          # Add installation instructions to release notes
-          cat >> release_notes.md << 'EOF'
+          # Get the checksum for the release notes
+          CHECKSUM=$(cat swift-dependency-audit.artifactbundle.zip.checksum)
 
-          ## Binary Target Usage (Swift Package Manager Plugin)
-
-          Add this to your Package.swift for build tool plugin usage:
-
-          ```swift
-          .binaryTarget(
-              name: "SwiftDependencyAuditBinary",
-              url: "https://github.com/tonyarnold/swift-dependency-audit/releases/download/${{ github.ref_name }}/swift-dependency-audit.artifactbundle.zip",
-              checksum: "$(cat swift-dependency-audit.artifactbundle.zip.checksum)"
-          )
-          ```
-
-          ## Manual Installation
-
-          Download the appropriate binary for your system:
-
-          - **Universal macOS** (recommended): `swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz`
-          - **Linux x86_64**: `swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz`
-          - **Linux ARM64**: `swift-dependency-audit-${{ github.ref_name }}-linux-aarch64.tar.gz`
-
-          ### Quick Install (macOS)
-          ```bash
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-macos-universal.tar.gz | tar -xz
-          sudo mv swift-dependency-audit-${{ github.ref_name }}-macos-universal/swift-dependency-audit /usr/local/bin/
-          ```
-
-          ### Quick Install (Linux)
-          ```bash
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/swift-dependency-audit-${{ github.ref_name }}-linux-x86_64.tar.gz | tar -xz
-          sudo mv swift-dependency-audit-${{ github.ref_name }}-linux-x86_64/swift-dependency-audit /usr/local/bin/
-          ```
-
-          ## Supported Platforms
-
-          - macOS (Universal: ARM64 + x86_64)
-          - Linux x86_64 (static binary, no Swift runtime required)
-          - Linux ARM64 (static binary, no Swift runtime required)
-
-          ## Plugin Usage
-
-          The binary target can be used with the SwiftDependencyAudit build tool plugin for automatic dependency validation during builds.
-
-          ## Checksums
-          All binaries are signed with SHA256 checksums available in `checksums.txt`.
-          EOF
+          # Add installation instructions to release notes using template
+          echo "" >> release_notes.md  # Add blank line before footer
+          sed -e "s/__REPOSITORY__/${{ github.repository }}/g" \
+              -e "s/__VERSION__/${VERSION}/g" \
+              -e "s/__CHECKSUM__/${CHECKSUM}/g" \
+              Templates/release-notes-footer.md >> release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

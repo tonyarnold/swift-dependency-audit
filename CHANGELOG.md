@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Details
 - **Multi-Platform Binary Distribution**
   - Added `Scripts/spm-artifact-bundle.sh` for automated artifact bundle generation
-  - Created `Scripts/spm-artifact-bundle-info.template` for Swift Package Manager manifest generation
+  - Created `Scripts/spm-artifact-bundle-info.json` for Swift Package Manager manifest generation
   - Implemented GitHub Actions workflow with matrix strategy for cross-platform builds
   - Binary optimization with `strip` for size reduction and `-Xswiftc -Osize` for performance
   - Artifact bundle structure following SPM schema version 1.0 with multi-platform variants

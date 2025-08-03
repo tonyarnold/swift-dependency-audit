@@ -10,7 +10,7 @@ set -euo pipefail
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TOOL_NAME="swift-dependency-audit"
 readonly BUNDLE_NAME="swift-dependency-audit.artifactbundle"
-readonly TEMPLATE_FILE="Templates/spm-artifact-bundle-info.template"
+readonly TEMPLATE_FILE="Templates/spm-artifact-bundle-info.json"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -39,7 +39,7 @@ log_error() {
 # Utility functions
 calculate_checksum() {
     local file="$1"
-    
+
     if command -v shasum >/dev/null 2>&1; then
         # macOS/BSD systems
         shasum -a 256 "$file" | cut -d' ' -f1
