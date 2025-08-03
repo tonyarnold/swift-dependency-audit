@@ -175,6 +175,9 @@ jobs:
             --issuer "${{ secrets.APPLE_API_ISSUER_ID }}" \
             --wait
 
+          echo "Staple notarization ticket to .build/apple/Products/Release/swift-dependency-audit"
+          xcrun stapler staple .build/apple/Products/Release/swift-dependency-audit
+
           # Clean up
           rm -f "${TEMP_DIR}/AuthKey.p8" swift-dependency-audit.zip
           security delete-keychain "${EPHEMERAL_KEYCHAIN_PATH}"
