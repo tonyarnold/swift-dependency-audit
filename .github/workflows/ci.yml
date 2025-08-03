@@ -179,7 +179,8 @@ jobs:
           echo "=== Format Check ==="
           # Use the built-in swift format command from the Swift toolchain
           swift format --version
-          swift format lint --recursive --strict .
+          # Check all Swift files except test fixtures and build artifacts
+          find . -name "*.swift" -not -path "./.build/*" -not -path "./Tests/*/Fixtures/*" | xargs swift format lint --strict
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

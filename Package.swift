@@ -37,7 +37,8 @@ let package = Package(
         ),
         .testTarget(
             name: "SwiftDependencyAuditTests",
-            dependencies: ["SwiftDependencyAuditLib"]
+            dependencies: ["SwiftDependencyAuditLib"],
+            resources: [.copy("Fixtures")]
         ),
         .plugin(
             name: "DependencyAuditPlugin",
