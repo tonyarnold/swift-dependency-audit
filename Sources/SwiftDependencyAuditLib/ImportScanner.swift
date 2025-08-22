@@ -356,6 +356,7 @@ public actor ImportScanner {
             "NetworkExtension",
             "NotificationCenter",
             "ObjectiveC",
+            "Observation",
             "OpenAL",
             "OpenCL",
             "OpenDirectory",
