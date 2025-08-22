@@ -420,6 +420,7 @@ public actor ImportScanner {
             "SwiftUI",
             "SwiftUICore",
             "Symbols",
+            "Synchronization",
             "SyncServices",
             "System",
             "SystemConfiguration",
