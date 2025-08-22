@@ -165,6 +165,11 @@ jobs:
 
           # Create and switch to release branch
           RELEASE_BRANCH="release/${VERSION}"
+          
+          # Delete existing remote branch if it exists
+          git push origin ":$RELEASE_BRANCH" 2>/dev/null || true
+          
+          # Create new local branch
           git checkout -b "$RELEASE_BRANCH"
 
           # Get the checksum for the commit message
