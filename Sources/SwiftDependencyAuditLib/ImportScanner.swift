@@ -35,6 +35,11 @@ public actor ImportScanner {
             }
         }
         ZeroOrMore(.whitespace)
+        // Handle trailing comments
+        ZeroOrMore {
+            "//"
+            ZeroOrMore(.anyNonNewline)
+        }
         Anchor.endOfLine
     }
 
