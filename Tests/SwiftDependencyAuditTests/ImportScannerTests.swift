@@ -192,4 +192,19 @@ struct ImportScannerTests {
         let testableImport = imports.first { $0.moduleName == "TestableModule" }
         #expect(testableImport?.isTestable == true)
     }
+
+    @Test("Trailing comments on imports")
+    func testTrailingCommentsOnImports() async throws {
+        let scanner = ImportScanner()
+        let content = """
+            import RegularModule // A trailing comment
+            """
+
+        let imports = await scanner.scanContent(content)
+
+        // Foundation should be filtered out, leaving 6 custom modules
+        #expect(imports.count == 1)
+        let moduleNames = Set(imports.map { $0.moduleName })
+        #expect(moduleNames.contains("RegularModule"))
+    }
 }
