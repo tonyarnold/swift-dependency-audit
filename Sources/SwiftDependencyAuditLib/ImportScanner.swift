@@ -379,6 +379,7 @@ public actor ImportScanner {
             "PHASE",
             "Photos",
             "PhotosUI",
+            "Playgrounds",
             "PreferencePanes",
             "ProximityReader",
             "ProximityReaderStub",
