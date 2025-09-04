@@ -15,11 +15,12 @@ public actor ImportScanner {
         // Handle optional access level modifiers like private, internal, public, etc.
         Optionally {
             ChoiceOf {
-                "private"
-                "internal"
-                "public"
-                "open"
                 "fileprivate"
+                "internal"
+                "open"
+                "package"
+                "private"
+                "public"
             }
             OneOrMore(.whitespace)
         }
@@ -378,6 +379,7 @@ public actor ImportScanner {
             "PHASE",
             "Photos",
             "PhotosUI",
+            "Playgrounds",
             "PreferencePanes",
             "ProximityReader",
             "ProximityReaderStub",
