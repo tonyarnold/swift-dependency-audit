@@ -81,7 +81,7 @@ build_linux_x86_64:
 		-v $(PWD):/workspace \
 		-w /workspace \
 		-e HOME=/tmp \
-		swift:6.1 \
+		swift:6.2 \
 		bash -c " \
 			VERSION=$(VERSION) swift build $(SWIFT_BUILD_FLAGS)  --triple x86_64-unknown-linux-gnu --static-swift-stdlib && \
 			strip .build/x86_64-unknown-linux-gnu/release/$(EXECUTABLE_NAME) \
@@ -97,7 +97,7 @@ build_linux_aarch64:
 		-v $(PWD):/workspace \
 		-w /workspace \
 		-e HOME=/tmp \
-		swift:6.1 \
+		swift:6.2 \
 		bash -c " \
 			echo 'Installing cross-compilation tools...' && \
 			apt-get update && apt-get install -y gcc-aarch64-linux-gnu && \

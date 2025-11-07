@@ -1,109 +1,109 @@
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
-  test:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "macOS Universal"
-            runner: macos-15
-            platform: "macOS"
-            xcode: "16.4"
-            arch: "universal"
-            comprehensive_test: true
-            lint_check: true
-          - name: "Linux x86_64"
-            runner: ubuntu-latest
-            platform: "Linux"
-            arch: "x86_64"
-            triple: "x86_64-unknown-linux-gnu"
-            comprehensive_test: true
-            lint_check: true
-          - name: "Linux ARM64"
-            runner: ubuntu-24.04-arm
-            platform: "Linux"
-            arch: "aarch64"
-            triple: "aarch64-unknown-linux-gnu"
-            comprehensive_test: true
-            lint_check: true
+    test:
+        name: ${{ matrix.name }}
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: "macOS Universal"
+                      runner: macos-26
+                      platform: "macOS"
+                      xcode: "26.0.1"
+                      arch: "universal"
+                      comprehensive_test: true
+                      lint_check: true
+                    - name: "Linux x86_64"
+                      runner: ubuntu-latest
+                      platform: "Linux"
+                      arch: "x86_64"
+                      triple: "x86_64-unknown-linux-gnu"
+                      comprehensive_test: true
+                      lint_check: true
+                    - name: "Linux ARM64"
+                      runner: ubuntu-24.04-arm
+                      platform: "Linux"
+                      arch: "aarch64"
+                      triple: "aarch64-unknown-linux-gnu"
+                      comprehensive_test: true
+                      lint_check: true
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Select Xcode version (macOS only)
-        if: matrix.platform == 'macOS'
-        run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+            - name: Select Xcode version (macOS only)
+              if: matrix.platform == 'macOS'
+              run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
 
-      - name: Setup Swift (Linux only)
-        if: matrix.platform == 'Linux'
-        run: ./Scripts/setup-swift-linux.sh
+            - name: Setup Swift (Linux only)
+              if: matrix.platform == 'Linux'
+              run: ./Scripts/setup-swift-linux.sh
 
-      - name: Show Swift version
-        run: swift --version
+            - name: Show Swift version
+              run: swift --version
 
-      - name: Cache Swift Package Manager
-        uses: actions/cache@v4
-        with:
-          path: |
-            .build
-            ~/.cache/org.swift.swiftpm
-          key: ${{ runner.os }}-${{ matrix.arch }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-spm-
-            ${{ runner.os }}-spm-
+            - name: Cache Swift Package Manager
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      .build
+                      ~/.cache/org.swift.swiftpm
+                  key: ${{ runner.os }}-${{ matrix.arch }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ matrix.arch }}-spm-
+                      ${{ runner.os }}-spm-
 
-      - name: Resolve dependencies
-        run: swift package resolve
+            - name: Resolve dependencies
+              run: swift package resolve
 
-      - name: Run tests
-        run: swift test --enable-code-coverage
+            - name: Run tests
+              run: swift test --enable-code-coverage
 
-      - name: Build optimized binary
-        run: ./Scripts/build-swift-binary.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "git"
+            - name: Build optimized binary
+              run: ./Scripts/build-swift-binary.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "git"
 
-      - name: Sign and notarize macOS binary
-        if: matrix.platform == 'macOS'
-        env:
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-        run: ./Scripts/sign-and-notarize-macos.sh
+            - name: Sign and notarize macOS binary
+              if: matrix.platform == 'macOS'
+              env:
+                  APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+                  APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+                  APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+                  APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+                  APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+              run: ./Scripts/sign-and-notarize-macos.sh
 
-      - name: Basic functionality test
-        run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "basic"
+            - name: Basic functionality test
+              run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "basic"
 
-      - name: Comprehensive validation
-        if: matrix.comprehensive_test
-        run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "comprehensive"
+            - name: Comprehensive validation
+              if: matrix.comprehensive_test
+              run: ./Scripts/test-binary-functionality.sh "${{ matrix.platform }}" "${{ matrix.arch }}" "${{ matrix.triple }}" "comprehensive"
 
-      - name: Lint and format check
-        if: matrix.lint_check
-        run: |
-          echo "=== Format Check ==="
-          # Use the built-in swift format command from the Swift toolchain
-          swift format --version
-          # Check all Swift files except test fixtures and build artifacts
-          find . -name "*.swift" -not -path "./.build/*" -not -path "./Tests/*/Fixtures/*" | xargs swift format lint --strict
+            - name: Lint and format check
+              if: matrix.lint_check
+              run: |
+                  echo "=== Format Check ==="
+                  # Use the built-in swift format command from the Swift toolchain
+                  swift format --version
+                  # Check all Swift files except test fixtures and build artifacts
+                  find . -name "*.swift" -not -path "./.build/*" -not -path "./Tests/*/Fixtures/*" | xargs swift format lint --strict
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ matrix.platform == 'macOS' && '.build/apple/Products/Release/swift-dependency-audit' || format('.build/{0}/release/swift-dependency-audit', matrix.triple) }}
-          retention-days: 7
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: build-artifacts-${{ matrix.platform }}-${{ matrix.arch }}
+                  path: ${{ matrix.platform == 'macOS' && '.build/apple/Products/Release/swift-dependency-audit' || format('.build/{0}/release/swift-dependency-audit', matrix.triple) }}
+                  retention-days: 7
