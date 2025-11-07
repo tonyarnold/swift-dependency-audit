@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.0.7] - 2025-01-08
+
 ### Changed
 - Bumped Swift version requirement to 6.2
 

@@ -41,30 +41,60 @@ update_changelog() {
     local clean_version="${version#v}"
     local current_date
     current_date="$(date +%Y-%m-%d)"
-    
+
     log_info "Updating CHANGELOG.md to release version $version"
-    
+
     # Create backup
     cp "$CHANGELOG_FILE" "${CHANGELOG_FILE}.backup"
     log_info "Created backup: ${CHANGELOG_FILE}.backup"
-    
+
     # Create temporary file
     local temp_file
     temp_file="$(mktemp)"
-    
+
     # Process the changelog
     awk -v version="$clean_version" -v date="$current_date" '
-    BEGIN { updated_unreleased = 0 }
-    
-    # Replace the first occurrence of [Unreleased] with the version
+    BEGIN {
+        updated_unreleased = 0
+        in_unreleased = 0
+        unreleased_content = ""
+    }
+
+    # When we hit [Unreleased], start capturing content
     /^## \[Unreleased\]$/ && !updated_unreleased {
-        print "## [Unreleased]"
-        print ""
-        print "## [" version "] - " date
+        in_unreleased = 1
         updated_unreleased = 1
         next
     }
-    
+
+    # When we hit the next section header while in unreleased, output everything
+    /^## / && in_unreleased {
+        # Output the new structure
+        print "## [Unreleased]"
+        print ""
+        print "## [" version "] - " date
+
+        # Output captured content (now under the versioned section)
+        if (unreleased_content != "") {
+            print unreleased_content
+        }
+
+        # Now print the current line (next version header) and stop capturing
+        print $0
+        in_unreleased = 0
+        next
+    }
+
+    # Capture content while in unreleased section
+    in_unreleased {
+        if (unreleased_content == "") {
+            unreleased_content = $0
+        } else {
+            unreleased_content = unreleased_content "\n" $0
+        }
+        next
+    }
+
     # Update the link at the bottom for the new version
     /^\[Unreleased\]:/ {
         # Extract the repository URL pattern
@@ -73,14 +103,14 @@ update_changelog() {
         print "[" version "]: https://github.com/yourusername/SwiftDependencyAudit/releases/tag/v" version
         next
     }
-    
+
     # Print all other lines unchanged
     { print }
     ' "$CHANGELOG_FILE" > "$temp_file"
-    
+
     # Replace original with updated content
     mv "$temp_file" "$CHANGELOG_FILE"
-    
+
     log_success "Successfully updated CHANGELOG.md"
     log_info "- Converted [Unreleased] to [$clean_version] - $current_date"
     log_info "- Added new empty [Unreleased] section"
@@ -92,7 +122,7 @@ main() {
     # Parse arguments
     local version=""
     local update_changelog=false
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --update-changelog)
@@ -131,7 +161,7 @@ main() {
                 ;;
         esac
     done
-    
+
     # Check required arguments
     if [[ -z "$version" ]]; then
         log_error "Usage: $SCRIPT_NAME <version> [--update-changelog]"
@@ -139,16 +169,16 @@ main() {
         log_error "Use --help for more information"
         exit 1
     fi
-    
+
     # Remove 'v' prefix if present for matching
     local clean_version="${version#v}"
-    
+
     # Check if CHANGELOG.md exists
     if [[ ! -f "$CHANGELOG_FILE" ]]; then
         log_error "CHANGELOG.md not found in current directory"
         exit 1
     fi
-    
+
     # Update changelog if requested
     if [[ "$update_changelog" == true ]]; then
         if [[ "$clean_version" == "unreleased" ]] || [[ "$version" == "unreleased" ]]; then
@@ -156,41 +186,41 @@ main() {
             log_error "Please specify a specific version (e.g., v1.0.0)"
             exit 1
         fi
-        
+
         # Check if unreleased section exists
         if ! grep -q "^## \[Unreleased\]" "$CHANGELOG_FILE"; then
             log_error "No [Unreleased] section found in $CHANGELOG_FILE"
             log_error "Cannot update changelog without unreleased content"
             exit 1
         fi
-        
+
         # Update the changelog
         update_changelog "$version"
         log_info ""
     fi
-    
+
     log_info "Extracting release notes for version $version from $CHANGELOG_FILE"
-    
+
     # Extract the unreleased section if no specific version is provided or version is "unreleased"
     if [[ "$clean_version" == "unreleased" ]] || [[ "$version" == "unreleased" ]]; then
         log_info "Extracting unreleased changes..."
-        
+
         # Extract content between "## [Unreleased]" and the next "## [" line
         awk '
         /^## \[Unreleased\]/ { found=1; next }
         /^## \[/ && found { exit }
         found { print }
         ' "$CHANGELOG_FILE"
-        
+
         if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
             log_error "Failed to extract unreleased section from CHANGELOG.md"
             exit 1
         fi
-        
+
         log_success "Successfully extracted unreleased changes"
         return 0
     fi
-    
+
     # Try to find the version in different formats
     local version_patterns=(
         "^## \\[$clean_version\\]"
@@ -198,7 +228,7 @@ main() {
         "^## $clean_version"
         "^## v$clean_version"
     )
-    
+
     local found_version=""
     for pattern in "${version_patterns[@]}"; do
         if grep -q "$pattern" "$CHANGELOG_FILE"; then
@@ -206,16 +236,16 @@ main() {
             break
         fi
     done
-    
+
     if [[ -z "$found_version" ]]; then
         log_error "Version $version not found in $CHANGELOG_FILE"
         log_info "Available versions:"
         grep "^## \[" "$CHANGELOG_FILE" | head -5 | sed 's/^/  /'
         exit 1
     fi
-    
+
     log_info "Found version using pattern: $found_version"
-    
+
     # Extract content between the version header and the next version header
     awk -v pattern="$found_version" '
     $0 ~ pattern { found=1; next }
@@ -224,12 +254,12 @@ main() {
     found && /^$/ { print; next }
     found && !/^$/ { print }
     ' "$CHANGELOG_FILE" | sed '/^$/d'
-    
+
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         log_error "Failed to extract release notes for version $version"
         exit 1
     fi
-    
+
     log_success "Successfully extracted release notes for version $version"
 }
 
