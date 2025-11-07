@@ -150,7 +150,7 @@ jobs:
                   chmod +x Scripts/update-artifact-bundle.sh
                   ./Scripts/update-artifact-bundle.sh "$VERSION"
 
-            - name: Commit updated Package.swift to release branch
+            - name: Commit updated files to release branch
               run: |
                   # Configure git for GitHub Actions bot
                   git config user.name "github-actions[bot]"
@@ -175,15 +175,34 @@ jobs:
                   # Get the checksum for the commit message
                   CHECKSUM=$(cat swift-dependency-audit.artifactbundle.zip.checksum)
 
-                  # Add and commit the updated Package.swift
-                  git add Package.swift
-                  git commit -m "Release Package.swift for $VERSION
+                  # Build commit message
+                  COMMIT_MSG="Release $VERSION
 
                   - Production Package.swift with binary targets
                   - Updated binary target URL for $VERSION
-                  - Updated checksum: $CHECKSUM
+                  - Updated checksum: $CHECKSUM"
+
+                  # Add CHANGELOG update to commit message if it was updated
+                  if [ "${{ env.CHANGELOG_UPDATED }}" = "true" ]; then
+                    COMMIT_MSG="${COMMIT_MSG}
+                  - Updated CHANGELOG.md with release notes"
+                  fi
+
+                  COMMIT_MSG="${COMMIT_MSG}
 
                   🤖 Automated release commit"
+
+                  # Add Package.swift
+                  git add Package.swift
+
+                  # Add CHANGELOG.md if it was updated
+                  if [ "${{ env.CHANGELOG_UPDATED }}" = "true" ]; then
+                    git add CHANGELOG.md
+                    echo "✅ Including updated CHANGELOG.md in release commit"
+                  fi
+
+                  # Commit the changes
+                  git commit -m "$COMMIT_MSG"
 
                   # Push the release branch
                   git push origin "$RELEASE_BRANCH"
@@ -240,6 +259,35 @@ jobs:
                   fi
                   cat checksums.txt
 
+            - name: Update CHANGELOG for release
+              run: |
+                  # Get version from git tag or manual input
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    VERSION="${{ github.event.inputs.tag_name }}"
+                  else
+                    VERSION=${GITHUB_REF#refs/tags/}
+                  fi
+
+                  # Make script executable
+                  chmod +x Scripts/generate-release-notes.sh
+
+                  # Check if Unreleased section exists and has content
+                  if grep -q "^## \[Unreleased\]" CHANGELOG.md; then
+                    echo "📝 Found [Unreleased] section, updating CHANGELOG.md for $VERSION"
+
+                    # Update CHANGELOG to convert Unreleased to versioned release
+                    if ./Scripts/generate-release-notes.sh "$VERSION" --update-changelog 2>&1; then
+                      echo "✅ Successfully updated CHANGELOG.md"
+                      echo "CHANGELOG_UPDATED=true" >> $GITHUB_ENV
+                    else
+                      echo "⚠️  Failed to update CHANGELOG.md, will use existing version"
+                      echo "CHANGELOG_UPDATED=false" >> $GITHUB_ENV
+                    fi
+                  else
+                    echo "ℹ️  No [Unreleased] section found, skipping CHANGELOG update"
+                    echo "CHANGELOG_UPDATED=false" >> $GITHUB_ENV
+                  fi
+
             - name: Generate release notes
               run: |
                   # Get version from git tag or manual input
@@ -249,14 +297,9 @@ jobs:
                     VERSION=${GITHUB_REF#refs/tags/}
                   fi
 
-                  # Make script executable and generate release notes
-                  chmod +x Scripts/generate-release-notes.sh
-
-                  # Try to extract specific version, fallback to unreleased
+                  # Try to extract specific version (should now exist after CHANGELOG update)
                   if ./Scripts/generate-release-notes.sh "$VERSION" > release_notes.md 2>/dev/null; then
                     echo "✅ Generated release notes from CHANGELOG.md for $VERSION"
-                  elif ./Scripts/generate-release-notes.sh "unreleased" > release_notes.md 2>/dev/null; then
-                    echo "⚠️  Specific version not found, using unreleased section"
                   else
                     echo "⚠️  Could not extract from CHANGELOG.md, using fallback"
                     cat > release_notes.md << 'EOF'
