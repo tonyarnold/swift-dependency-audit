@@ -423,6 +423,7 @@ public actor ImportScanner {
             "StickerFoundation",
             "StickerKit",
             "StoreKit",
+            "StoreKitTest",
             "Swift",
             "SwiftData",
             "SwiftUI",
