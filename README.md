@@ -207,7 +207,7 @@ Creates rich annotations in CI/CD workflows:
 
 ## Requirements
 
-- Swift 6.1+
+- Swift 6.2+
 
 ## Development
 
