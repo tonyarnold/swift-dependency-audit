@@ -7,9 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- The macOS binary tool is now code signed and notarized.
+### Changed
+- Bumped Swift version requirement to 6.2
 
-## [v2.0.0]
+### Fixed
+- Fixed Package.swift configuration
+
+## [v2.0.6] - 2025-01-08
+
+### Added
+- Added StoreKitTest to the list of ignored system imports
+
+## [v2.0.5] - 2025-01-08
+
+### Added
+- Added support for package scope dependencies
+- Added Playgrounds to system module scanner
+
+### Changed
+- Removed non-functional cache cleanup workflow
+
+## [v2.0.4] - 2025-01-08
+
+### Added
+- Added .editorconfig for consistent code formatting
+
+### Fixed
+- Fixed handling of trailing comments on import statements
+
+## [v2.0.3] - 2025-01-08
+
+### Added
+- Added Observation to isStandardLibraryModule for Swift 5.9+ support
+
+## [v2.0.2] - 2025-01-08
+
+### Added
+- Added Synchronization to isStandardLibraryModule for Swift 6.0+ support
+
+### Fixed
+- Fixed release workflow failing issues
+
+## [v2.0.1] - 2025-01-08
+
+### Added
+- The macOS binary tool is now code signed and notarized
+
+## [v2.0.0] - 2025-08-03
 
 ### Added
 - **Constant-Based Dependency Declarations**
@@ -35,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Section extraction now correctly ignores square brackets inside parentheses to prevent premature parsing termination
   - Resolves issue where dependencies like `RxSwift` were missed when following conditional products like `MyModuleTV` with platform conditions
 
-## [v1.4.0]
+## [v1.4.0] - 2025-07-18
 
 ### Changed
 - **CLI Interface Simplification**
@@ -189,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Core Functionality**
-  - Swift Package.swift parsing with Swift 6.1 support
+  - Swift Package.swift parsing with Swift 6.2 support
   - Import statement scanning using Swift regex patterns
   - Support for `@testable` import analysis
   - Dependency analysis comparing declared vs actual imports
@@ -248,7 +292,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive .gitignore for Swift projects
 
 ### Technical Details
-- **Language**: Swift 6.1+
+- **Language**: Swift 6.2+
 - **Concurrency**: Modern Swift concurrency with strict safety
 - **Dependencies**: Swift Argument Parser
 - **Platforms**: macOS 15.0+, iOS 18.0+, tvOS 18.0+, watchOS 11.0+, macCatalyst 18.0+
