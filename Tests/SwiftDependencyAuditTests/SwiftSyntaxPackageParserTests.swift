@@ -164,6 +164,26 @@ struct SwiftSyntaxPackageParserTests {
         print("Regex parser found \(regexTarget.dependencies.count) dependencies: \(regexTarget.dependencies)")
     }
 
+    @Test("SwiftSyntax parser does not treat Target.Dependency.target as a target declaration")
+    func testTargetDependencyDoesNotCreateTarget() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "TargetDependencyTargetsArray", withExtension: "swift",
+            subdirectory: "Fixtures/Regression")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let parser = SwiftSyntaxPackageParser()
+        let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp")
+
+        #expect(packageInfo.targets.count == 3)
+        #expect(packageInfo.targets.map(\.name).sorted() == ["Core", "Shared", "SharedUI"])
+
+        let coreTarget = packageInfo.targets.first { $0.name == "Core" }
+        #expect(coreTarget?.dependencies.count == 2)
+        #expect(coreTarget?.dependencies.contains("Shared") == true)
+        #expect(coreTarget?.dependencies.contains("SharedUI") == true)
+    }
+
     @Test("Compare line number accuracy with regex parser")
     func testLineNumberAccuracy() async throws {
         let testBundle = Bundle.module
