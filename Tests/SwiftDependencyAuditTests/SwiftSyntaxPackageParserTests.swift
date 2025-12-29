@@ -184,6 +184,21 @@ struct SwiftSyntaxPackageParserTests {
         #expect(coreTarget?.dependencies.contains("SharedUI") == true)
     }
 
+    @Test("SwiftSyntax parser ignores dependency targets inside nested unlabeled arrays")
+    func testNestedArrayDependencyDoesNotCreateTarget() async throws {
+        let testBundle = Bundle.module
+        let fixtureURL = testBundle.url(
+            forResource: "TargetDependencyNestedArray", withExtension: "swift",
+            subdirectory: "Fixtures/Regression")!
+        let packageContent = try String(contentsOf: fixtureURL)
+
+        let parser = SwiftSyntaxPackageParser()
+        let packageInfo = try await parser.parseContent(packageContent, packageDirectory: "/tmp")
+
+        #expect(packageInfo.targets.count == 3)
+        #expect(packageInfo.targets.map(\.name).sorted() == ["App", "Core", "Shared"])
+    }
+
     @Test("Compare line number accuracy with regex parser")
     func testLineNumberAccuracy() async throws {
         let testBundle = Bundle.module
