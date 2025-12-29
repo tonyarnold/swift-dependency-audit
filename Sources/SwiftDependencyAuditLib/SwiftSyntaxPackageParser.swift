@@ -214,7 +214,7 @@ private class PackageVisitor: SyntaxVisitor {
                     customPath = extractStringLiteralValue(stringLiteral)
                 }
             case "dependencies":
-                dependencyInfos = extractDependencies(from: argument.expression, targetName: name ?? "")
+                dependencyInfos = extractDependencies(from: argument.expression)
             default:
                 break
             }
@@ -225,7 +225,7 @@ private class PackageVisitor: SyntaxVisitor {
         return Target(name: targetName, type: targetType, dependencyInfo: dependencyInfos, path: customPath)
     }
 
-    private func extractDependencies(from expression: ExprSyntax, targetName: String) -> [DependencyInfo] {
+    private func extractDependencies(from expression: ExprSyntax) -> [DependencyInfo] {
         var dependencies: [DependencyInfo] = []
 
         if let arrayExpr = expression.as(ArrayExprSyntax.self) {
@@ -265,16 +265,16 @@ private class PackageVisitor: SyntaxVisitor {
                         }
                     case "target", "byName":
                         // Extract .target(name: "...") or .byName(name: "...")
-                        var targetName: String?
+                        var dependencyTargetName: String?
                         for argument in functionCall.arguments {
                             if argument.label?.text == "name",
                                 let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self)
                             {
-                                targetName = extractStringLiteralValue(stringLiteral)
+                                dependencyTargetName = extractStringLiteralValue(stringLiteral)
                             }
                         }
 
-                        if let name = targetName {
+                        if let name = dependencyTargetName {
                             let lineNumber = getLineNumber(for: functionCall)
                             dependencies.append(
                                 DependencyInfo(
@@ -468,6 +468,7 @@ private class PackageVisitor: SyntaxVisitor {
                 if let argumentExpr = arrayExpr.parent?.as(LabeledExprSyntax.self) {
                     return argumentExpr.label?.text == "targets"
                 }
+                return false
             }
             current = node.parent
         }
