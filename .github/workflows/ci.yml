@@ -21,7 +21,7 @@ jobs:
                     - name: "macOS Universal"
                       runner: macos-26
                       platform: "macOS"
-                      xcode: "26.0.1"
+                      xcode: "26.2"
                       arch: "universal"
                       comprehensive_test: true
                       lint_check: true
