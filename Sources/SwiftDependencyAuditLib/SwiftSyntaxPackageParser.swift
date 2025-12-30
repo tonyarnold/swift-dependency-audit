@@ -137,11 +137,13 @@ private class PackageVisitor: SyntaxVisitor {
             extractPackageInfo(from: node)
         }
 
-        // Handle .target(), .executableTarget(), etc.
+        // Handle .target(), .executableTarget(), etc. only in Package targets context
         if let memberAccess = node.calledExpression.as(MemberAccessExprSyntax.self) {
             switch memberAccess.declName.baseName.text {
             case "target", "executableTarget", "testTarget", "macro", "systemLibrary", "binaryTarget":
-                if let target = extractTarget(from: node, type: memberAccess.declName.baseName.text) {
+                if isTargetContext(functionCall: node),
+                    let target = extractTarget(from: node, type: memberAccess.declName.baseName.text)
+                {
                     targets.append(target)
                 }
             case "plugin":
@@ -150,7 +152,7 @@ private class PackageVisitor: SyntaxVisitor {
                     if let product = extractProduct(from: node, type: memberAccess.declName.baseName.text) {
                         products.append(product)
                     }
-                } else {
+                } else if isTargetContext(functionCall: node) {
                     if let target = extractTarget(from: node, type: memberAccess.declName.baseName.text) {
                         targets.append(target)
                     }
@@ -212,7 +214,7 @@ private class PackageVisitor: SyntaxVisitor {
                     customPath = extractStringLiteralValue(stringLiteral)
                 }
             case "dependencies":
-                dependencyInfos = extractDependencies(from: argument.expression, targetName: name ?? "")
+                dependencyInfos = extractDependencies(from: argument.expression)
             default:
                 break
             }
@@ -223,43 +225,66 @@ private class PackageVisitor: SyntaxVisitor {
         return Target(name: targetName, type: targetType, dependencyInfo: dependencyInfos, path: customPath)
     }
 
-    private func extractDependencies(from expression: ExprSyntax, targetName: String) -> [DependencyInfo] {
+    private func extractDependencies(from expression: ExprSyntax) -> [DependencyInfo] {
         var dependencies: [DependencyInfo] = []
 
         if let arrayExpr = expression.as(ArrayExprSyntax.self) {
             for element in arrayExpr.elements {
                 if let functionCall = element.expression.as(FunctionCallExprSyntax.self),
-                    let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self),
-                    memberAccess.declName.baseName.text == "product"
+                    let memberAccess = functionCall.calledExpression.as(MemberAccessExprSyntax.self)
                 {
+                    switch memberAccess.declName.baseName.text {
+                    case "product":
+                        // Extract .product(name: "...", package: "...")
+                        var productName: String?
+                        var packageName: String?
 
-                    // Extract .product(name: "...", package: "...")
-                    var productName: String?
-                    var packageName: String?
-
-                    for argument in functionCall.arguments {
-                        switch argument.label?.text {
-                        case "name":
-                            if let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) {
-                                productName = extractStringLiteralValue(stringLiteral)
+                        for argument in functionCall.arguments {
+                            switch argument.label?.text {
+                            case "name":
+                                if let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) {
+                                    productName = extractStringLiteralValue(stringLiteral)
+                                }
+                            case "package":
+                                if let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) {
+                                    packageName = extractStringLiteralValue(stringLiteral)
+                                }
+                            default:
+                                break
                             }
-                        case "package":
-                            if let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self) {
-                                packageName = extractStringLiteralValue(stringLiteral)
-                            }
-                        default:
-                            break
                         }
-                    }
 
-                    if let prodName = productName, let pkgName = packageName {
-                        let lineNumber = getLineNumber(for: functionCall)
-                        dependencies.append(
-                            DependencyInfo(
-                                name: prodName,
-                                type: .product(packageName: pkgName),
-                                lineNumber: lineNumber
-                            ))
+                        if let prodName = productName, let pkgName = packageName {
+                            let lineNumber = getLineNumber(for: functionCall)
+                            dependencies.append(
+                                DependencyInfo(
+                                    name: prodName,
+                                    type: .product(packageName: pkgName),
+                                    lineNumber: lineNumber
+                                ))
+                        }
+                    case "target", "byName":
+                        // Extract .target(name: "...") or .byName(name: "...")
+                        var dependencyTargetName: String?
+                        for argument in functionCall.arguments {
+                            if argument.label?.text == "name",
+                                let stringLiteral = argument.expression.as(StringLiteralExprSyntax.self)
+                            {
+                                dependencyTargetName = extractStringLiteralValue(stringLiteral)
+                            }
+                        }
+
+                        if let name = dependencyTargetName {
+                            let lineNumber = getLineNumber(for: functionCall)
+                            dependencies.append(
+                                DependencyInfo(
+                                    name: name,
+                                    type: .target,
+                                    lineNumber: lineNumber
+                                ))
+                        }
+                    default:
+                        break
                     }
                 } else if let stringLiteral = element.expression.as(StringLiteralExprSyntax.self) {
                     // Simple string dependency
@@ -429,6 +454,21 @@ private class PackageVisitor: SyntaxVisitor {
                 {
                     return true
                 }
+            }
+            current = node.parent
+        }
+        return false
+    }
+
+    private func isTargetContext(functionCall: FunctionCallExprSyntax) -> Bool {
+        // Walk up the AST to determine if this call is a direct element of a targets array
+        var current: SyntaxProtocol? = functionCall.parent
+        while let node = current {
+            if let arrayExpr = node.as(ArrayExprSyntax.self) {
+                if let argumentExpr = arrayExpr.parent?.as(LabeledExprSyntax.self) {
+                    return argumentExpr.label?.text == "targets"
+                }
+                return false
             }
             current = node.parent
         }
